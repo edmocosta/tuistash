@@ -1,0 +1,23 @@
+[package]
+name = "lsmon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.1.6", features = ["std", "derive"], default-features = false }
+ureq = { version = "2.6.2", features = ["json"], default-features = false }
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_with = { version = "2.2.0", default-features = false }
+serde_json = { version = "1.0", default-features = false }
+tabled = { version = "0.10", features = ["color"], default-features = false }
+owo-colors = { version = "3.5.0", default-features = false }
+json_to_table = { version = "*", default-features = false }
+base64 = { version = "0.21.0", features = ["std"], default-features = false }
+rustls = { version = "0.20.8", features = ["dangerous_configuration"], default-features = false }
+colored_json = { version = "3", default-features = false }
+chrono = { version = "0.4.23", features = ["std"], default-features = false }
+humansize = { version = "2.1.3", default-features = false }
+
+[[bin]]
+name = "lsmon"
+path = "src/cli/main.rs"
