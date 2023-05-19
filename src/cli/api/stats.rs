@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -14,20 +15,30 @@ pub struct NodeStats {
     pub name: String,
     pub ephemeral_id: String,
     pub status: String,
-    pub snapshot: bool,
-    pub pipeline: PipelineSettings,
+    pub snapshot: Option<bool>,
+    pub pipeline: PipelineDefaultSettings,
     pub jvm: Jvm,
     pub process: Process,
     pub events: Events,
     pub flow: Flow,
-    pub pipelines: HashMap<String, Pipeline>,
+    pub pipelines: HashMap<String, PipelineStats>,
     pub reloads: ReloadsStat,
     pub os: Os,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct NodeStatsVertex {
+    pub id: String,
+    pub pipeline_ephemeral_id: String,
+    pub events_out: i64,
+    pub duration_in_millis: u64,
+    pub events_in: i64,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct PipelineSettings {
+pub struct PipelineDefaultSettings {
     pub workers: i64,
     pub batch_size: i64,
     pub batch_delay: i64,
@@ -137,8 +148,10 @@ pub struct Events {
     pub r#in: i64,
     pub filtered: i64,
     pub out: i64,
-    pub duration_in_millis: i64,
-    pub queue_push_duration_in_millis: i64,
+    pub duration_in_millis: u64,
+    pub queue_push_duration_in_millis: u64,
+    pub in_field: i64,
+    pub writes_in: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -160,23 +173,38 @@ pub struct MetricValue {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct Pipeline {
-    pub events: PipelineEvents,
+pub struct PipelineStats {
+    pub events: Events,
     pub flow: PipelineFlow,
     pub plugins: Plugins,
     pub reloads: Reloads,
     pub queue: Queue,
+    #[serde(with = "vertices")]
+    pub vertices: HashMap<String, NodeStatsVertex>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct PipelineEvents {
-    pub duration_in_millis: i64,
-    #[serde(rename = "in")]
-    pub input: i64,
-    pub filtered: i64,
-    pub out: i64,
-    pub queue_push_duration_in_millis: i64,
+mod vertices {
+    use super::NodeStatsVertex;
+    use std::collections::HashMap;
+    use serde::ser::Serializer;
+    use serde::de::{Deserialize, Deserializer};
+
+    pub fn serialize<S>(map: &HashMap<String, NodeStatsVertex>, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.collect_seq(map.values())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<String, NodeStatsVertex>, D::Error>
+        where D: Deserializer<'de>
+    {
+        let mut map = HashMap::new();
+        for item in Vec::<NodeStatsVertex>::deserialize(deserializer)? {
+            map.insert(item.id.to_string(), item);
+        }
+
+        Ok(map)
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -196,6 +224,7 @@ pub struct PipelineFlow {
 pub struct Plugins {
     pub inputs: Vec<InputPlugin>,
     pub filters: Vec<FilterPlugin>,
+    pub codecs: Vec<CodecPlugin>,
     pub outputs: Vec<OutputPlugin>,
 }
 
@@ -203,22 +232,15 @@ pub struct Plugins {
 #[serde(default)]
 pub struct InputPlugin {
     pub id: String,
-    pub events: InputPluginEvents,
+    pub events: Events,
     pub name: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct InputPluginEvents {
-    pub out: i64,
-    pub queue_push_duration_in_millis: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FilterPlugin {
     pub id: String,
-    pub events: FilterPluginEvents,
+    pub events: Events,
     pub failures: Option<i64>,
     pub patterns_per_field: Option<PatternsPerField>,
     pub name: String,
@@ -226,11 +248,11 @@ pub struct FilterPlugin {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct FilterPluginEvents {
-    pub duration_in_millis: i64,
-    #[serde(rename = "in")]
-    pub in_field: i64,
-    pub out: i64,
+pub struct CodecPlugin {
+    pub id: String,
+    pub name: String,
+    pub encode: Events,
+    pub decode: Events,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -243,7 +265,7 @@ pub struct PatternsPerField {
 #[serde(default)]
 pub struct OutputPlugin {
     pub id: String,
-    pub events: OutputPluginEvents,
+    pub events: Events,
     pub name: String,
 }
 
@@ -270,7 +292,7 @@ pub struct Reloads {
 #[serde(default)]
 pub struct Queue {
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub r#type: String,
     pub capacity: QueueCapacity,
     pub data: QueueData,
     pub events: i64,

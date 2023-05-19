@@ -1,14 +1,15 @@
 use serde_json::Value;
+
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::commands::node::default::DefaultFormatter;
 use crate::commands::node::json::JsonFormatter;
 use crate::commands::node::table::TableFormatter;
-use crate::result::{GenericResult};
+use crate::errors::AnyError;
 
 pub trait ValueFormatter {
-    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> GenericResult<String>;
+    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> Result<String, AnyError>;
 
-    fn format_value(&self, content: Value, types: Option<&[NodeInfoType]>) -> GenericResult<String> {
+    fn format_value(&self, content: Value, types: Option<&[NodeInfoType]>) -> Result<String, AnyError> {
         let node_info: NodeInfo = serde_json::from_value(content)?;
         return Self::format(self, &node_info, types);
     }

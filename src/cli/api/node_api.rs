@@ -1,17 +1,24 @@
 use crate::api::Client;
 use crate::api::node::{NodeInfo, NodeInfoType};
-use crate::result::GenericResult;
+use crate::api::stats::NodeStats;
+use crate::errors::AnyError;
 
 impl Client {
-    pub fn get_node_info_into_string(&self, types: &[NodeInfoType], _args: &[&str]) -> GenericResult<String> {
+    pub fn get_node_info_into_string(&self, types: &[NodeInfoType], _args: &[&str]) -> Result<String, AnyError> {
         let response = self.request("GET", &self.node_info_request_path(types), None)?;
         Ok(response.into_string()?)
     }
 
-    pub fn get_node_info(&self, types: &[NodeInfoType], _args: &[&str]) -> GenericResult<NodeInfo> {
-        let response = self.request("GET", &self.node_info_request_path(types), None)?;
+    pub fn get_node_info(&self, types: &[NodeInfoType], _args: &[&str]) -> Result<NodeInfo, AnyError> {
+        let response = self.request("GET", &self.node_info_request_path(types), Some(&[("graph".to_string(), "true".to_string())]))?;
         let node_info: NodeInfo = response.into_json()?;
         Ok(node_info)
+    }
+
+    pub fn get_node_stats(&self) -> Result<NodeStats, AnyError> {
+        let response = self.request("GET", &self.node_request_path("stats"), Some(&[("vertices".to_string(), "true".to_string())]))?;
+        let node_stats: NodeStats = response.into_json()?;
+        Ok(node_stats)
     }
 
     fn node_info_request_path(&self, types: &[NodeInfoType]) -> String {

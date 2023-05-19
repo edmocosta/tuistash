@@ -21,14 +21,70 @@ pub struct Node {
 pub struct NodeInfo {
     #[serde(flatten)]
     pub node: Node,
-    pub pipelines: Option<HashMap<String, Pipeline>>,
+    pub pipelines: Option<HashMap<String, PipelineInfo>>,
     pub os: Option<Os>,
     pub jvm: Option<Jvm>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct Pipeline {
+pub struct Graph {
+    pub graph: GraphDefinition
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GraphDefinition {
+    pub vertices: Vec<Vertex>,
+    pub edges: Vec<Edge>
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Edge {
+    pub id: String,
+    pub from: String,
+    pub to: String,
+    pub r#type: String,
+    pub when: Option<bool>
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Vertex {
+    pub id: String,
+    pub explicit_id: bool,
+    pub config_name: String,
+    pub plugin_type: String,
+    pub condition: String,
+    pub r#type: String,
+    pub meta: Option<VertexMeta>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VertexMeta {
+    pub source: VertexMetaSource,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VertexMetaSource {
+    pub protocol: String,
+    pub id: String,
+    pub line: u32,
+    pub column: u32,
+}
+
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.eq(&other.id)
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PipelineInfo {
     pub ephemeral_id: String,
     pub hash: String,
     pub workers: i64,
@@ -37,6 +93,7 @@ pub struct Pipeline {
     pub config_reload_automatic: bool,
     pub config_reload_interval: i64,
     pub dead_letter_queue_enabled: bool,
+    pub graph: Graph
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

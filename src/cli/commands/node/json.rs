@@ -5,17 +5,17 @@ use serde_json::Value;
 
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::commands::node::output::ValueFormatter;
-use crate::result::GenericResult;
+use crate::errors::AnyError;
 
 pub(crate) struct JsonFormatter;
 
 impl ValueFormatter for JsonFormatter {
-    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> GenericResult<String> {
+    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> Result<String, AnyError> {
         let value = serde_json::to_value(content)?;
         Self::format_value(self, value, types)
     }
 
-    fn format_value(&self, content: Value, types: Option<&[NodeInfoType]>) -> GenericResult<String> {
+    fn format_value(&self, content: Value, types: Option<&[NodeInfoType]>) -> Result<String, AnyError> {
         let formatted_content = match types {
             None => content,
             Some(values) => remove_unlisted_fields(content, values)?
@@ -25,7 +25,7 @@ impl ValueFormatter for JsonFormatter {
     }
 }
 
-pub(crate) fn remove_unlisted_fields(content: Value, types: &[NodeInfoType]) -> GenericResult<Value> {
+pub(crate) fn remove_unlisted_fields(content: Value, types: &[NodeInfoType]) -> Result<Value, AnyError> {
     let mut inner_map = content.as_object().unwrap().to_owned();
     let mut types_set: HashSet<String> = HashSet::with_capacity(types.len());
 

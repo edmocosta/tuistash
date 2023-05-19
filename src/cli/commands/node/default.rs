@@ -6,12 +6,12 @@ use tabled::builder::Builder;
 
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::commands::node::output::ValueFormatter;
-use crate::result::GenericResult;
+use crate::errors::AnyError;
 
 pub(crate) struct DefaultFormatter;
 
 impl ValueFormatter for DefaultFormatter {
-    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> GenericResult<String> {
+    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> Result<String, AnyError> {
         Ok(new_default_table(content, types).to_string())
     }
 }

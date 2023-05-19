@@ -15,6 +15,12 @@ pub struct Cli {
 
     #[arg(long, default_value_t = 9600, global = true)]
     pub port: u16,
+
+    #[arg(long, global = true)]
+    pub username: Option<String>,
+
+    #[arg(long, global = true)]
+    pub password: Option<String>,
 }
 
 pub fn build_cli() -> Cli {

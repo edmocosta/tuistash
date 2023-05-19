@@ -1,5 +1,6 @@
+use std::sync::Arc;
 use crate::api;
 
-pub struct Config<'a> {
-    pub api: &'a mut api::Client,
+pub struct Config {
+    pub api: Arc<api::Client>,
 }

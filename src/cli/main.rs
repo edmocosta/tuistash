@@ -1,5 +1,6 @@
+use std::sync::Arc;
 use crate::config::Config;
-use crate::result::GenericResult;
+use crate::errors::{AnyError};
 use crate::output::Output;
 
 mod cli;
@@ -7,14 +8,14 @@ mod commands;
 mod output;
 mod config;
 mod api;
-mod result;
+mod errors;
 
 type ExitCode = i32;
 
-fn run() -> GenericResult<ExitCode> {
+fn run() -> Result<ExitCode, AnyError> {
     let cli = cli::build_cli();
-    let mut api = api::Client::new(&cli.host, &cli.port, None, None).unwrap();
-    let config = Config { api: &mut api };
+    let api = api::Client::new(&cli.host, &cli.port, cli.username, cli.password).unwrap();
+    let config = Config { api: Arc::new(api) };
 
     let stdout = std::io::stdout();
     let mut stdout_lock = stdout.lock();

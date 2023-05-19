@@ -1,20 +1,22 @@
 use clap::Subcommand;
 
 use crate::commands::node::command::{NodeArgs, NodeCommand};
+use crate::commands::stats::command::{StatsArgs, StatsCommand};
 use crate::commands::traits::RunnableCommand;
 use crate::config::Config;
+use crate::errors::AnyError;
 use crate::output::Output;
-use crate::result::GenericResult;
 
 pub mod traits;
 mod node;
+mod stats;
 
 #[derive(Subcommand)]
 pub enum Command {
     #[command(subcommand)]
     Get(GetCommands),
 
-    Stats,
+    Stats(StatsArgs),
 }
 
 #[derive(Subcommand)]
@@ -23,7 +25,7 @@ pub enum GetCommands {
 }
 
 impl Command {
-    pub fn execute(&self, out: &mut Output, config: &Config) -> GenericResult<()> {
+    pub fn execute(&self, out: &mut Output, config: &Config) -> Result<(), AnyError> {
         match &self {
             Command::Get(subcommand) => {
                 return match subcommand {
@@ -32,8 +34,8 @@ impl Command {
                     }
                 };
             }
-            Command::Stats => {
-                todo!()
+            Command::Stats(args) => {
+                StatsCommand.run(out, &args, config)
             }
         }
     }

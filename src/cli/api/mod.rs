@@ -4,7 +4,7 @@ use base64::prelude::BASE64_STANDARD;
 use base64::write::EncoderWriter;
 use ureq::Response;
 
-use crate::result::GenericResult;
+use crate::errors::AnyError;
 
 mod tls;
 pub mod node_api;
@@ -38,9 +38,9 @@ impl ClientConfig {
 }
 
 impl Client {
-    pub fn new(host: &str, port: &u16, username: Option<String>, password: Option<String>) -> GenericResult<Self> {
+    pub fn new(host: &str, port: &u16, username: Option<String>, password: Option<String>) -> Result<Self, AnyError> {
         let base_url = format!("{}:{}", host, port);
-        
+
         // let tls_config = rustls::ClientConfig::builder()
         //     .with_safe_defaults()
         //     .with_custom_certificate_verifier(SkipServerVerification::new())
@@ -52,7 +52,7 @@ impl Client {
         })
     }
 
-    pub fn request(&self, method: &str, request_path: &str, query: Option<&[(String, String)]>) -> GenericResult<Response> {
+    pub fn request(&self, method: &str, request_path: &str, query: Option<&[(String, String)]>) -> Result<Response, AnyError> {
         let path = format!("{}/{}", self.config.base_url, request_path);
         let mut request = self.client.request(method, &path);
 
