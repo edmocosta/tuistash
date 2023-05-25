@@ -21,6 +21,9 @@ pub struct Cli {
 
     #[arg(long, global = true)]
     pub password: Option<String>,
+
+    #[arg(long, default_value_t = false, global = true)]
+    pub skip_tls_verification: bool,
 }
 
 pub fn build_cli() -> Cli {

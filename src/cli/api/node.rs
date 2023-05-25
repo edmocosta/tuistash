@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -29,14 +29,14 @@ pub struct NodeInfo {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Graph {
-    pub graph: GraphDefinition
+    pub graph: GraphDefinition,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GraphDefinition {
     pub vertices: Vec<Vertex>,
-    pub edges: Vec<Edge>
+    pub edges: Vec<Edge>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -46,7 +46,7 @@ pub struct Edge {
     pub from: String,
     pub to: String,
     pub r#type: String,
-    pub when: Option<bool>
+    pub when: Option<bool>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -93,7 +93,7 @@ pub struct PipelineInfo {
     pub config_reload_automatic: bool,
     pub config_reload_interval: i64,
     pub dead_letter_queue_enabled: bool,
-    pub graph: Graph
+    pub graph: Graph,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

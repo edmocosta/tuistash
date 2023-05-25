@@ -7,9 +7,9 @@ use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
 
-pub mod traits;
 mod node;
 mod stats;
+pub mod traits;
 
 #[derive(Subcommand)]
 pub enum Command {
@@ -29,14 +29,10 @@ impl Command {
         match &self {
             Command::Get(subcommand) => {
                 return match subcommand {
-                    GetCommands::Node(args) => {
-                        NodeCommand.run(out, &args, config)
-                    }
+                    GetCommands::Node(args) => NodeCommand.run(out, &args, config),
                 };
             }
-            Command::Stats(args) => {
-                StatsCommand.run(out, &args, config)
-            }
+            Command::Stats(args) => StatsCommand.run(out, &args, config),
         }
     }
 }

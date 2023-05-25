@@ -1,7 +1,5 @@
 use std::time::Duration;
 
-use num_format::{Locale, ToFormattedString};
-
 pub trait DurationFormatter {
     fn format_duration(&self) -> String;
     fn format_duration_per_event(&self, events_count: u64) -> String;
@@ -12,7 +10,7 @@ impl DurationFormatter for u64 {
         if *self == 0 {
             return "-".to_string();
         }
-        
+
         let secs = *self / 1000;
         let duration: Duration;
         if secs > 0 {
@@ -29,9 +27,8 @@ impl DurationFormatter for u64 {
             return "-".to_string();
         }
 
-        let secs = *self as f64 * 1000 as f64;
-        let es: f64 = events_count as f64 / secs;
-        return format!("{:.2} e/s", es);
+        let duration = *self as f64 / events_count as f64;
+        return format!("{}", human_format::Formatter::new().format(duration));
     }
 }
 
@@ -43,7 +40,9 @@ impl NumberFormatter for i64 {
     fn format_number(&self) -> String {
         match self {
             0 => "0".into(),
-            _ => self.to_formatted_string(&Locale::en),
+            _ => human_format::Formatter::new()
+                .with_decimals(3)
+                .format(*self as f64), //self.to_formatted_string(&Locale::en),
         }
     }
 }

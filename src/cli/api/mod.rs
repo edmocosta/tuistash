@@ -1,18 +1,20 @@
 use std::io::Write;
+use std::sync::Arc;
 
 use base64::prelude::BASE64_STANDARD;
 use base64::write::EncoderWriter;
-use ureq::Response;
+use ureq::{Agent, Response};
 
+use crate::api::tls::SkipServerVerification;
 use crate::errors::AnyError;
 
-mod tls;
+pub mod node;
 pub mod node_api;
 pub mod stats;
-pub mod node;
+mod tls;
 
 pub struct Client {
-    client: ureq::Agent,
+    client: Agent,
     config: ClientConfig,
 }
 
@@ -27,7 +29,11 @@ impl ClientConfig {
         let mut buf = b"Basic ".to_vec();
         {
             let mut encoder = EncoderWriter::new(&mut buf, &BASE64_STANDARD);
-            let _ = write!(encoder, "{}:", &self.username.clone().unwrap_or(String::new()));
+            let _ = write!(
+                encoder,
+                "{}:",
+                &self.username.clone().unwrap_or(String::new())
+            );
             if let Some(password) = &self.password {
                 let _ = write!(encoder, "{}", password);
             }
@@ -38,21 +44,45 @@ impl ClientConfig {
 }
 
 impl Client {
-    pub fn new(host: &str, port: &u16, username: Option<String>, password: Option<String>) -> Result<Self, AnyError> {
+    pub fn new(
+        host: &str,
+        port: &u16,
+        username: Option<String>,
+        password: Option<String>,
+        skip_tls_verification: bool,
+    ) -> Result<Self, AnyError> {
         let base_url = format!("{}:{}", host, port);
+        let agent: Agent;
 
-        // let tls_config = rustls::ClientConfig::builder()
-        //     .with_safe_defaults()
-        //     .with_custom_certificate_verifier(SkipServerVerification::new())
-        //     .with_no_client_auth();
+        if skip_tls_verification {
+            let tls_config = rustls::ClientConfig::builder()
+                .with_safe_defaults()
+                .with_custom_certificate_verifier(SkipServerVerification::new())
+                .with_no_client_auth();
+
+            agent = ureq::AgentBuilder::new()
+                .tls_config(Arc::new(tls_config))
+                .build();
+        } else {
+            agent = ureq::AgentBuilder::new().build()
+        }
 
         Ok(Self {
-            client: ureq::AgentBuilder::new().build(),
-            config: ClientConfig { base_url, username, password },
+            client: agent,
+            config: ClientConfig {
+                base_url,
+                username,
+                password,
+            },
         })
     }
 
-    pub fn request(&self, method: &str, request_path: &str, query: Option<&[(String, String)]>) -> Result<Response, AnyError> {
+    pub fn request(
+        &self,
+        method: &str,
+        request_path: &str,
+        query: Option<&[(String, String)]>,
+    ) -> Result<Response, AnyError> {
         let path = format!("{}/{}", self.config.base_url, request_path);
         let mut request = self.client.request(method, &path);
 
@@ -70,4 +100,3 @@ impl Client {
         return Ok(result);
     }
 }
-

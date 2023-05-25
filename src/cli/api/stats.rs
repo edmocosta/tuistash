@@ -1,5 +1,4 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -50,7 +49,7 @@ pub struct Jvm {
     pub threads: JvmThreads,
     pub mem: JvmMem,
     pub gc: JvmGc,
-    pub uptime_in_millis: i64,
+    pub uptime_in_millis: u64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -157,17 +156,22 @@ pub struct Events {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Flow {
-    pub input_throughput: MetricValue,
-    pub filter_throughput: MetricValue,
-    pub output_throughput: MetricValue,
-    pub queue_backpressure: MetricValue,
-    pub worker_concurrency: MetricValue,
+    pub input_throughput: FlowMetricValue,
+    pub filter_throughput: FlowMetricValue,
+    pub output_throughput: FlowMetricValue,
+    pub queue_backpressure: FlowMetricValue,
+    pub worker_concurrency: FlowMetricValue,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct MetricValue {
+pub struct FlowMetricValue {
     pub current: f64,
+    pub last_1_minute: Option<f64>,
+    pub last_5_minutes: Option<f64>,
+    pub last_15_minutes: Option<f64>,
+    pub last_1_hour: Option<f64>,
+    pub last_24_hours: Option<f64>,
     pub lifetime: f64,
 }
 
@@ -184,19 +188,28 @@ pub struct PipelineStats {
 }
 
 mod vertices {
-    use super::NodeStatsVertex;
     use std::collections::HashMap;
-    use serde::ser::Serializer;
-    use serde::de::{Deserialize, Deserializer};
 
-    pub fn serialize<S>(map: &HashMap<String, NodeStatsVertex>, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    use serde::de::{Deserialize, Deserializer};
+    use serde::ser::Serializer;
+
+    use super::NodeStatsVertex;
+
+    pub fn serialize<S>(
+        map: &HashMap<String, NodeStatsVertex>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
     {
         serializer.collect_seq(map.values())
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<String, NodeStatsVertex>, D::Error>
-        where D: Deserializer<'de>
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<HashMap<String, NodeStatsVertex>, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         let mut map = HashMap::new();
         for item in Vec::<NodeStatsVertex>::deserialize(deserializer)? {
@@ -210,72 +223,97 @@ mod vertices {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PipelineFlow {
-    pub input_throughput: MetricValue,
-    pub filter_throughput: MetricValue,
-    pub output_throughput: MetricValue,
-    pub queue_backpressure: MetricValue,
-    pub worker_concurrency: MetricValue,
-    pub queue_persisted_growth_bytes: MetricValue,
-    pub queue_persisted_growth_events: MetricValue,
+    pub input_throughput: FlowMetricValue,
+    pub filter_throughput: FlowMetricValue,
+    pub output_throughput: FlowMetricValue,
+    pub queue_backpressure: FlowMetricValue,
+    pub worker_concurrency: FlowMetricValue,
+    pub queue_persisted_growth_bytes: FlowMetricValue,
+    pub queue_persisted_growth_events: FlowMetricValue,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Plugins {
-    pub inputs: Vec<InputPlugin>,
-    pub filters: Vec<FilterPlugin>,
-    pub codecs: Vec<CodecPlugin>,
-    pub outputs: Vec<OutputPlugin>,
+    #[serde(with = "plugins")]
+    pub inputs: HashMap<String, Plugin>,
+    #[serde(with = "plugins")]
+    pub filters: HashMap<String, Plugin>,
+    #[serde(with = "plugins")]
+    pub codecs: HashMap<String, Plugin>,
+    #[serde(with = "plugins")]
+    pub outputs: HashMap<String, Plugin>,
+}
+
+impl Plugins {
+    pub fn get(&self, name: &str) -> Option<&Plugin> {
+        if let Some(plugin) = self.inputs.get(name) {
+            return Some(plugin);
+        }
+
+        if let Some(plugin) = self.filters.get(name) {
+            return Some(plugin);
+        }
+
+        if let Some(plugin) = self.outputs.get(name) {
+            return Some(plugin);
+        }
+
+        return self.codecs.get(name);
+    }
+}
+
+mod plugins {
+    use std::collections::HashMap;
+
+    use serde::de::{Deserialize, Deserializer};
+    use serde::ser::Serializer;
+
+    use crate::api::stats::Plugin;
+
+    pub fn serialize<S>(map: &HashMap<String, Plugin>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_seq(map.values())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<String, Plugin>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut map = HashMap::new();
+        for item in Vec::<Plugin>::deserialize(deserializer)? {
+            map.insert(item.id.to_string(), item);
+        }
+
+        Ok(map)
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct InputPlugin {
+pub struct Plugin {
     pub id: String,
     pub events: Events,
     pub name: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct FilterPlugin {
-    pub id: String,
-    pub events: Events,
+    pub flow: Option<PluginFlow>,
     pub failures: Option<i64>,
-    pub patterns_per_field: Option<PatternsPerField>,
-    pub name: String,
+    pub encode: Option<Events>,
+    pub decode: Option<Events>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct CodecPlugin {
-    pub id: String,
-    pub name: String,
-    pub encode: Events,
-    pub decode: Events,
+pub struct PluginFlow {
+    pub throughput: Option<FlowMetricValue>,
+    pub worker_utilization: Option<FlowMetricValue>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PatternsPerField {
     pub message: i64,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct OutputPlugin {
-    pub id: String,
-    pub events: Events,
-    pub name: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct OutputPluginEvents {
-    pub duration_in_millis: i64,
-    #[serde(rename = "in")]
-    pub in_field: i64,
-    pub out: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

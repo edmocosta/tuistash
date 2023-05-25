@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use crate::api::node::{Edge, GraphDefinition, Vertex};
+use crate::api::node::{GraphDefinition, Vertex};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Stats {
@@ -16,7 +16,6 @@ pub struct Stats {
 pub struct Node<'a> {
     pub vertex: &'a Vertex,
     pub stats: Option<&'a Stats>,
-
 }
 
 pub struct Data<'a, T> {
@@ -55,13 +54,14 @@ impl<'a> PipelineGraph<'a> {
         }
 
         for edge in &graph_value.edges {
-            vertices.get_mut(edge.from.as_str()).unwrap().push(
-                VertexEdge {
+            vertices
+                .get_mut(edge.from.as_str())
+                .unwrap()
+                .push(VertexEdge {
                     vertex_id: edge.to.as_str(),
                     r#type: edge.r#type.to_string(),
                     when: edge.when,
-                }
-            );
+                });
         }
 
         for vertex in &graph_value.vertices {

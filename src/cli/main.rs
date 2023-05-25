@@ -1,20 +1,20 @@
-use std::sync::Arc;
 use crate::config::Config;
-use crate::errors::{AnyError};
+use crate::errors::AnyError;
 use crate::output::Output;
+use std::sync::Arc;
 
+mod api;
 mod cli;
 mod commands;
-mod output;
 mod config;
-mod api;
 mod errors;
+mod output;
 
 type ExitCode = i32;
 
 fn run() -> Result<ExitCode, AnyError> {
     let cli = cli::build_cli();
-    let api = api::Client::new(&cli.host, &cli.port, cli.username, cli.password).unwrap();
+    let api = api::Client::new(&cli.host, &cli.port, cli.username, cli.password, cli.skip_tls_verification).unwrap();
     let config = Config { api: Arc::new(api) };
 
     let stdout = std::io::stdout();

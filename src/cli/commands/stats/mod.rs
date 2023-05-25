@@ -1,8 +1,11 @@
-pub mod command;
 mod app;
-mod ui;
 mod backend;
+mod charts;
+pub mod command;
+mod flow_charts;
 mod formatter;
 mod graph;
-mod widgets;
+mod node_charts;
 mod pipeline_viewer;
+mod ui;
+mod widgets;

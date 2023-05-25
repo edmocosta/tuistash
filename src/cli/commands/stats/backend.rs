@@ -1,22 +1,24 @@
+use std::{
+    io,
+    time::{Duration, Instant},
+};
+
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{
-    error::Error,
-    io,
-    time::{Duration, Instant},
-};
 use tui::{
     backend::{Backend, CrosstermBackend},
     Terminal,
 };
+
 use crate::commands::stats::app::App;
 use crate::commands::stats::ui;
 use crate::config::Config;
+use crate::errors::AnyError;
 
-pub fn run(tick_rate: Duration, config: &Config) -> Result<(), Box<dyn Error>> {
+pub fn run(interval: Duration, config: &Config) -> Result<(), AnyError> {
     enable_raw_mode()?;
 
     let mut stdout = io::stdout();
@@ -24,8 +26,9 @@ pub fn run(tick_rate: Duration, config: &Config) -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let app = App::new("Logstash", config.api.clone());
-    let res = run_app(&mut terminal, app, tick_rate);
+    let app = App::new("Logstash", config.api.clone(), interval);
+
+    run_app(&mut terminal, app, interval)?;
 
     disable_raw_mode()?;
 
@@ -36,24 +39,19 @@ pub fn run(tick_rate: Duration, config: &Config) -> Result<(), Box<dyn Error>> {
     )?;
 
     terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{:?}", err)
-    }
-
     Ok(())
 }
 
 fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app: App,
-    tick_rate: Duration,
+    interval: Duration,
 ) -> io::Result<()> {
     let mut last_tick = Instant::now();
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        let timeout = tick_rate
+        let timeout = interval
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
 
@@ -61,6 +59,7 @@ fn run_app<B: Backend>(
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char(c) => app.on_key(c),
+                    KeyCode::Enter => app.on_enter(),
                     KeyCode::Left => app.on_left(),
                     KeyCode::Up => app.on_up(),
                     KeyCode::Right => app.on_right(),
@@ -69,7 +68,7 @@ fn run_app<B: Backend>(
                 }
             }
         }
-        if last_tick.elapsed() >= tick_rate {
+        if last_tick.elapsed() >= interval {
             app.on_tick();
             last_tick = Instant::now();
         }

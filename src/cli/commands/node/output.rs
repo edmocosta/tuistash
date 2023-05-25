@@ -7,9 +7,17 @@ use crate::commands::node::table::TableFormatter;
 use crate::errors::AnyError;
 
 pub trait ValueFormatter {
-    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> Result<String, AnyError>;
+    fn format(
+        &self,
+        content: &NodeInfo,
+        types: Option<&[NodeInfoType]>,
+    ) -> Result<String, AnyError>;
 
-    fn format_value(&self, content: Value, types: Option<&[NodeInfoType]>) -> Result<String, AnyError> {
+    fn format_value(
+        &self,
+        content: Value,
+        types: Option<&[NodeInfoType]>,
+    ) -> Result<String, AnyError> {
         let node_info: NodeInfo = serde_json::from_value(content)?;
         return Self::format(self, &node_info, types);
     }
@@ -32,7 +40,7 @@ impl TryFrom<&str> for OutputFormat {
             "json" => Ok(OutputFormat::Json),
             "table" => Ok(OutputFormat::Table),
             "raw" => Ok(OutputFormat::Raw),
-            _ => Err(format!("Invalid output format: {}!", value))
+            _ => Err(format!("Invalid output format: {}!", value)),
         }
     }
 }
@@ -40,10 +48,10 @@ impl TryFrom<&str> for OutputFormat {
 impl OutputFormat {
     pub fn new_formatter(&self) -> Box<dyn ValueFormatter> {
         return match self {
-            OutputFormat::Json => { Box::new(JsonFormatter {}) }
-            OutputFormat::Table => { Box::new(TableFormatter {}) }
-            OutputFormat::Default => { Box::new(DefaultFormatter {}) }
-            _ => { Box::new(DefaultFormatter {}) }
+            OutputFormat::Json => Box::new(JsonFormatter {}),
+            OutputFormat::Table => Box::new(TableFormatter {}),
+            OutputFormat::Default => Box::new(DefaultFormatter {}),
+            _ => Box::new(DefaultFormatter {}),
         };
     }
 }

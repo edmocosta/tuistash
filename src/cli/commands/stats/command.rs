@@ -1,5 +1,7 @@
 use std::time::Duration;
+
 use clap::Args;
+
 use crate::commands::stats::backend::run;
 use crate::commands::traits::RunnableCommand;
 use crate::config::Config;
@@ -15,9 +17,12 @@ pub struct StatsArgs {
 pub struct StatsCommand;
 
 impl RunnableCommand<StatsArgs> for StatsCommand {
-    fn run(&self, _: &mut Output, args: &StatsArgs, config: &Config) -> Result<(), AnyError> {
+    fn run(&self, _: &mut Output, _args: &StatsArgs, config: &Config) -> Result<(), AnyError> {
         let tick_rate = Duration::from_millis(1000);
-        run(tick_rate, config);
+        if let Err(e) = run(tick_rate, config) {
+            println!("{}", e);
+        }
+
         Ok(())
     }
 }

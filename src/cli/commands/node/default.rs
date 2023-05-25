@@ -1,8 +1,8 @@
 use chrono::NaiveDateTime;
-use humansize::{DECIMAL, format_size_i};
+use humansize::{format_size_i, DECIMAL};
 use owo_colors::OwoColorize;
-use tabled::{row, Style, Table};
 use tabled::builder::Builder;
+use tabled::{row, Style, Table};
 
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::commands::node::output::ValueFormatter;
@@ -11,7 +11,11 @@ use crate::errors::AnyError;
 pub(crate) struct DefaultFormatter;
 
 impl ValueFormatter for DefaultFormatter {
-    fn format(&self, content: &NodeInfo, types: Option<&[NodeInfoType]>) -> Result<String, AnyError> {
+    fn format(
+        &self,
+        content: &NodeInfo,
+        types: Option<&[NodeInfoType]>,
+    ) -> Result<String, AnyError> {
         Ok(new_default_table(content, types).to_string())
     }
 }
@@ -137,8 +141,16 @@ fn create_jvm_table(node_info: &NodeInfo) -> Table {
             jvm.version.to_string(),
             format!("{} {} ({})", jvm.vm_name, jvm.vm_vendor, jvm.vm_version),
             jvm_start_time,
-            format!("{} / {}", humanize_bytes(jvm.mem.heap_init_in_bytes), humanize_bytes(jvm.mem.heap_max_in_bytes)),
-            format!("{} / {}", humanize_bytes(jvm.mem.non_heap_init_in_bytes), humanize_bytes(jvm.mem.non_heap_max_in_bytes)),
+            format!(
+                "{} / {}",
+                humanize_bytes(jvm.mem.heap_init_in_bytes),
+                humanize_bytes(jvm.mem.heap_max_in_bytes)
+            ),
+            format!(
+                "{} / {}",
+                humanize_bytes(jvm.mem.non_heap_init_in_bytes),
+                humanize_bytes(jvm.mem.non_heap_max_in_bytes)
+            ),
             jvm.gc_collectors.join(", "),
         ]);
     }
@@ -176,7 +188,9 @@ fn new_default_table(node_info: &NodeInfo, types: Option<&[NodeInfoType]>) -> Ta
                         }
                         _ => {
                             add_section_separator(&mut builder, info_types, info_type);
-                            builder.add_record(vec!["Default format not supported for this type".red().to_string()]);
+                            builder.add_record(vec!["Default format not supported for this type"
+                                .red()
+                                .to_string()]);
                         }
                     }
                 }
@@ -190,14 +204,24 @@ fn new_default_table(node_info: &NodeInfo, types: Option<&[NodeInfoType]>) -> Ta
     return table;
 }
 
-fn add_section_separator(builder: &mut Builder, info_types: &[NodeInfoType], current: &NodeInfoType) {
+fn add_section_separator(
+    builder: &mut Builder,
+    info_types: &[NodeInfoType],
+    current: &NodeInfoType,
+) {
     if info_types.len() > 1 {
         add_section_separator_record(builder, current);
     }
 }
 
 fn add_section_separator_record(builder: &mut Builder, current: &NodeInfoType) {
-    let mut section = row![current.to_string().to_uppercase().blue().bold().underline().to_string()];
+    let mut section = row![current
+        .to_string()
+        .to_uppercase()
+        .blue()
+        .bold()
+        .underline()
+        .to_string()];
     section.with(Style::empty());
     builder.add_record(vec![section.to_string()]);
 }

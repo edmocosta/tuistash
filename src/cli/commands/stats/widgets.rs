@@ -1,4 +1,4 @@
-use tui::widgets::{ListState, TableState};
+use tui::widgets::{TableState};
 
 // Tabs
 pub struct TabsState<'a> {
@@ -44,8 +44,8 @@ impl<'a, T> StatefulTable<T> {
 
     pub fn selected_item(&self) -> Option<&T> {
         return match self.state.selected() {
-            None => { None }
-            Some(index) => { Some(&self.items[index]) }
+            None => None,
+            Some(index) => Some(&self.items[index]),
         };
     }
 
@@ -64,82 +64,9 @@ impl<'a, T> StatefulTable<T> {
                     0
                 } else {
                     i + 1
-                }
-            }
-            None => 0
-        };
-
-        self.state.select(Some(i));
-        self.selected_item()
-    }
-
-    pub fn previous(&mut self) -> Option<&T> {
-        if self.items.is_empty() {
-            return None;
-        }
-
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
                 }
             }
             None => 0,
-        };
-
-        self.state.select(Some(i));
-        self.selected_item()
-    }
-}
-
-// List
-pub struct StatefulList<T> {
-    pub state: ListState,
-    pub items: Vec<T>,
-}
-
-impl<'a, T> StatefulList<T> where T: Clone {
-    pub fn new() -> Self {
-        StatefulList {
-            state: ListState::default(),
-            items: vec![],
-        }
-    }
-
-    pub fn selected_item(&self) -> Option<&T> {
-        return match self.state.selected() {
-            None => { None }
-            Some(index) => { Some(&self.items[index]) }
-        };
-    }
-
-    pub fn set_items(&mut self, items: Vec<T>, reset_state: bool) {
-        self.items = items;
-        if reset_state {
-            self.state = ListState::default();
-        }
-    }
-
-    pub fn unselect(&mut self) {
-        self.state.select(None);
-    }
-
-    pub fn next(&mut self) -> Option<&T> {
-        if self.items.is_empty() {
-            return None;
-        }
-
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0
         };
 
         self.state.select(Some(i));

@@ -1,7 +1,7 @@
 use clap::Args;
 
 use crate::api::node::NodeInfoType;
-use crate::commands::node::output::{OutputFormat};
+use crate::commands::node::output::OutputFormat;
 use crate::commands::traits::RunnableCommand;
 use crate::config::Config;
 use crate::errors::AnyError;
@@ -22,7 +22,7 @@ impl RunnableCommand<NodeArgs> for NodeCommand {
     fn run(&self, out: &mut Output, args: &NodeArgs, config: &Config) -> Result<(), AnyError> {
         let output_format = match &args.output {
             None => OutputFormat::Default,
-            Some(value) => OutputFormat::try_from(value.as_ref())?
+            Some(value) => OutputFormat::try_from(value.as_ref())?,
         };
 
         let info_types = &NodeCommand::parse_info_types(&args.types)?;
@@ -31,7 +31,13 @@ impl RunnableCommand<NodeArgs> for NodeCommand {
             NodeCommand::write(out, raw.as_bytes())?;
         } else {
             let node_info = config.api.get_node_info(info_types, &vec![])?;
-            NodeCommand::write(out, output_format.new_formatter().format(&node_info, Some(info_types))?.as_bytes())?;
+            NodeCommand::write(
+                out,
+                output_format
+                    .new_formatter()
+                    .format(&node_info, Some(info_types))?
+                    .as_bytes(),
+            )?;
         }
 
         return Ok(());
@@ -47,7 +53,7 @@ impl NodeCommand {
 
     fn parse_info_types(types: &Option<String>) -> Result<Vec<NodeInfoType>, AnyError> {
         return match types {
-            None => Ok(vec!(NodeInfoType::All)),
+            None => Ok(vec![NodeInfoType::All]),
             Some(values) => {
                 let parts = values.trim().split(",");
                 let mut result: Vec<NodeInfoType> = Vec::with_capacity(values.len());
