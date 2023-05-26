@@ -9,6 +9,7 @@ use crate::output::Output;
 
 #[derive(Args)]
 pub struct NodeArgs {
+    /// Valid values are 'node', 'os', 'jvm', 'pipelines' separated by comma
     #[arg()]
     pub types: Option<String>,
 

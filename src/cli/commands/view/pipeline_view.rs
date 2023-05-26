@@ -12,10 +12,10 @@ use uuid::Uuid;
 
 use crate::api::node::Vertex;
 use crate::api::stats::PipelineStats;
-use crate::commands::stats::app::{App, AppState, PipelineItem};
-use crate::commands::stats::flow_charts::{render_flow_chart, render_plugins_flow_chart};
-use crate::commands::stats::formatter::{DurationFormatter, NumberFormatter};
-use crate::commands::stats::graph::PipelineGraph;
+use crate::commands::view::app::{App, AppState, PipelineItem};
+use crate::commands::view::flow_charts::{render_flow_chart, render_plugins_flow_chart};
+use crate::commands::view::formatter::{DurationFormatter, NumberFormatter};
+use crate::commands::view::graph::PipelineGraph;
 
 pub(crate) fn render_pipeline_vertices<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where

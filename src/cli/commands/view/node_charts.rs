@@ -6,12 +6,12 @@ use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset, Gauge, GraphType};
 use tui::{symbols, Frame};
 
-use crate::commands::stats::app::App;
-use crate::commands::stats::charts::{
+use crate::commands::view::app::App;
+use crate::commands::view::charts::{
     create_binary_size_label_spans, create_percentage_label_spans, create_timestamp_label_spans,
     DEFAULT_LABELS_COUNT,
 };
-use crate::commands::stats::flow_charts::{render_flow_chart, render_plugins_flow_chart};
+use crate::commands::view::flow_charts::{render_flow_chart, render_plugins_flow_chart};
 
 pub(crate) fn render_node_charts<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where

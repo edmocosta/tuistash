@@ -13,8 +13,8 @@ use tui::{
     Terminal,
 };
 
-use crate::commands::stats::app::App;
-use crate::commands::stats::ui;
+use crate::commands::view::app::App;
+use crate::commands::view::ui;
 use crate::config::Config;
 use crate::errors::AnyError;
 
@@ -48,6 +48,8 @@ fn run_app<B: Backend>(
     interval: Duration,
 ) -> io::Result<()> {
     let mut last_tick = Instant::now();
+    app.on_tick();
+
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
@@ -58,6 +60,7 @@ fn run_app<B: Backend>(
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
+                    KeyCode::Esc => app.on_esc(),
                     KeyCode::Char(c) => app.on_key(c),
                     KeyCode::Enter => app.on_enter(),
                     KeyCode::Left => app.on_left(),

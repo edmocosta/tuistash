@@ -9,12 +9,12 @@ use crate::api;
 use crate::api::node::{GraphDefinition, NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
 use crate::api::Client;
-use crate::commands::stats::charts::{
+use crate::commands::view::charts::{
     ChartDataPoint, TimestampChartState, DEFAULT_MAX_DATA_POINTS,
 };
-use crate::commands::stats::graph::PipelineGraph;
-use crate::commands::stats::pipeline_view;
-use crate::commands::stats::widgets::{StatefulTable, TabsState};
+use crate::commands::view::graph::PipelineGraph;
+use crate::commands::view::pipeline_view;
+use crate::commands::view::widgets::{StatefulTable, TabsState};
 use crate::errors::AnyError;
 
 struct DataFetcher<'a> {
@@ -372,7 +372,7 @@ impl<'a> App<'a> {
     pub fn on_key(&mut self, c: char) {
         match c {
             'q' => {
-                self.should_quit = true;
+                self.on_esc();
             }
             'f' => {
                 if self.pipelines.selected_item().is_some() {
@@ -387,6 +387,10 @@ impl<'a> App<'a> {
             }
             _ => {}
         }
+    }
+
+    pub fn on_esc(&mut self){
+        self.should_quit = true;
     }
 
     pub fn on_tick(&mut self) {

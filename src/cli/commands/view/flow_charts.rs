@@ -6,9 +6,9 @@ use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType};
 use tui::{symbols, Frame};
 
-use crate::commands::stats::app::{FlowMetricDataPoint, PluginFlowMetricDataPoint};
-use crate::commands::stats::charts::TimestampChartState;
-use crate::commands::stats::charts::{
+use crate::commands::view::app::{FlowMetricDataPoint, PluginFlowMetricDataPoint};
+use crate::commands::view::charts::TimestampChartState;
+use crate::commands::view::charts::{
     create_float_label_spans, create_timestamp_label_spans, ChartDataPoint, DEFAULT_LABELS_COUNT,
 };
 

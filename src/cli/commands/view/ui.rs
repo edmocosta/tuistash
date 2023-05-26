@@ -10,10 +10,10 @@ use tui::{
     Frame,
 };
 
-use crate::commands::stats::app::App;
-use crate::commands::stats::formatter::{DurationFormatter, NumberFormatter};
-use crate::commands::stats::node_charts::render_node_charts;
-use crate::commands::stats::pipeline_view;
+use crate::commands::view::app::App;
+use crate::commands::view::formatter::{DurationFormatter, NumberFormatter};
+use crate::commands::view::node_charts::render_node_charts;
+use crate::commands::view::pipeline_view;
 
 pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let chunks = Layout::default()
