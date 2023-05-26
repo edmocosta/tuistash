@@ -23,9 +23,7 @@ fn run() -> Result<ExitCode, AnyError> {
         cli.skip_tls_verification,
     )
     .unwrap();
-    let config = Config {
-        api: &api,
-    };
+    let config = Config { api: &api };
 
     let stdout = std::io::stdout();
     let mut stdout_lock = stdout.lock();

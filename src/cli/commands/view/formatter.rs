@@ -12,7 +12,7 @@ impl DurationFormatter for u64 {
         }
 
         let secs = *self / 1000;
-        let duration= if secs > 0 {
+        let duration = if secs > 0 {
             Duration::from_secs(secs)
         } else {
             Duration::from_millis(*self)

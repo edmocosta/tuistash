@@ -247,9 +247,9 @@ pub(crate) struct AppState {
     pub chart_flow_queue_backpressure: TimestampChartState<FlowMetricDataPoint>,
 
     pub chart_flow_pipeline_plugins_throughput:
-    HashMap<String, TimestampChartState<PluginFlowMetricDataPoint>>,
+        HashMap<String, TimestampChartState<PluginFlowMetricDataPoint>>,
     pub chart_flow_pipeline_queue_backpressure:
-    HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
+        HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
 }
 
 pub(crate) struct App<'a> {

@@ -131,11 +131,7 @@ fn create_plugin_row<'a>(
 ) -> Row<'a> {
     let plugin_name_cell = if vertex.explicit_id {
         Cell::from(Spans::from(vec![
-            Span::from(format!(
-                "{}{} ",
-                ident_spaces,
-                vertex.config_name
-            )),
+            Span::from(format!("{}{} ", ident_spaces, vertex.config_name)),
             Span::styled(
                 format!("({})", vertex.id.as_str()),
                 Style::default().fg(Color::Blue),
@@ -144,8 +140,7 @@ fn create_plugin_row<'a>(
     } else {
         Cell::from(Text::from(format!(
             "{}{}",
-            ident_spaces,
-            vertex.config_name
+            ident_spaces, vertex.config_name
         )))
     };
 
@@ -156,7 +151,7 @@ fn create_plugin_row<'a>(
 
     if let Some(stats) = pipeline_stats {
         let events = stats.vertices.get(vertex.id.as_str()).unwrap();
-        let events_count= if vertex.plugin_type == "input" {
+        let events_count = if vertex.plugin_type == "input" {
             events.events_out
         } else {
             events.events_in
@@ -273,7 +268,7 @@ pub fn create_pipeline_vertex_ids(
     let mut visited: RefCell<HashSet<&str>> = RefCell::new(HashSet::with_capacity(
         selected_pipeline.graph.vertices.len(),
     ));
-    let mut stack: GraphVisitorStack= RefCell::new(Vec::new());
+    let mut stack: GraphVisitorStack = RefCell::new(Vec::new());
     let mut head_stack = graph.heads.to_vec();
     if head_stack.is_empty() {
         return vec![];
