@@ -67,11 +67,11 @@ where
             .column_spacing(2)
             .highlight_style(selected_style)
             .widths(&[
-                Constraint::Percentage(55), // Name
+                Constraint::Percentage(50), // Name
                 Constraint::Percentage(7),  // Kind
-                Constraint::Percentage(12), // In
-                Constraint::Percentage(12), // Out
-                Constraint::Percentage(14), // Duration
+                Constraint::Percentage(11), // In
+                Constraint::Percentage(11), // Out
+                Constraint::Percentage(21), // Duration
             ]);
 
         f.render_stateful_widget(
