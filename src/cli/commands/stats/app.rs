@@ -1,47 +1,41 @@
-use std::{f64, i64};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{f64, i64};
 
 use chrono::Local;
 
 use crate::api;
 use crate::api::node::{GraphDefinition, NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
+use crate::api::Client;
 use crate::commands::stats::charts::{
-    ChartDataPoint, DEFAULT_MAX_DATA_POINTS, TimestampChartState,
+    ChartDataPoint, TimestampChartState, DEFAULT_MAX_DATA_POINTS,
 };
 use crate::commands::stats::graph::PipelineGraph;
-use crate::commands::stats::pipeline_viewer;
+use crate::commands::stats::pipeline_view;
 use crate::commands::stats::widgets::{StatefulTable, TabsState};
+use crate::errors::AnyError;
 
-struct DataFetcher {
-    api: Arc<api::Client>,
+struct DataFetcher<'a> {
+    api: Arc<&'a Client<'a>>,
 }
 
-impl DataFetcher {
-    pub fn new(api: Arc<api::Client>) -> DataFetcher {
+impl<'a> DataFetcher<'a> {
+    pub fn new(api: Arc<&'a api::Client>) -> DataFetcher<'a> {
         DataFetcher { api }
     }
 
-    pub fn fetch_info(&self) -> Option<NodeInfo> {
-        match self.api.get_node_info(&[NodeInfoType::Pipelines], &vec![]) {
-            Ok(stats) => Some(stats),
-            Err(_) => {
-                //println!("{:?}", err);
-                None
-            }
-        }
+    pub fn fetch_info(&self) -> Result<NodeInfo, AnyError> {
+        self.api.get_node_info(
+            &[NodeInfoType::Pipelines],
+            Some(Client::QUERY_NODE_INFO_GRAPH),
+        )
     }
 
-    pub fn fetch_stats(&self) -> Option<NodeStats> {
-        match self.api.get_node_stats() {
-            Ok(stats) => Some(stats),
-            Err(err) => {
-                //println!("{:?}", err);
-                None
-            }
-        }
+    pub fn fetch_stats(&self) -> Result<NodeStats, AnyError> {
+        self.api
+            .get_node_stats(Some(Client::QUERY_NODE_STATS_VERTICES))
     }
 }
 
@@ -53,7 +47,7 @@ impl StatefulTable<String> {
             return;
         }
 
-        self.items = pipeline_viewer::create_rows_ids(
+        self.items = pipeline_view::create_pipeline_vertex_ids(
             &PipelineGraph::from(&selected_pipeline.unwrap().graph),
             selected_pipeline.unwrap(),
         );
@@ -257,15 +251,16 @@ pub(crate) struct AppState {
     pub chart_flow_queue_backpressure: TimestampChartState<FlowMetricDataPoint>,
 
     pub chart_flow_pipeline_plugins_throughput:
-    HashMap<String, TimestampChartState<PluginFlowMetricDataPoint>>,
+        HashMap<String, TimestampChartState<PluginFlowMetricDataPoint>>,
     pub chart_flow_pipeline_queue_backpressure:
-    HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
+        HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
 }
 
 pub(crate) struct App<'a> {
     pub title: &'a str,
     pub should_quit: bool,
-    pub tabs: TabsState<'a>,
+    pub connected: bool,
+    pub tabs: TabsState,
     pub pipelines: StatefulTable<PipelineItem>,
     pub selected_pipeline_graph: StatefulTable<String>,
     pub state: AppState,
@@ -273,23 +268,21 @@ pub(crate) struct App<'a> {
     pub show_selected_plugin_charts: bool,
     pub focused: usize,
     pub refresh_interval: Duration,
-    data_fetcher: DataFetcher,
+    data_fetcher: DataFetcher<'a>,
 }
 
 impl<'a> App<'a> {
-    pub fn new(title: &'a str, api: Arc<api::Client>, refresh_interval: Duration) -> App<'a> {
-        let max_data_points = Some(10);
-
+    pub fn new(title: &'a str, api: Arc<&'a api::Client>, refresh_interval: Duration) -> App<'a> {
         let app_state = AppState {
             node_info: None,
             node_stats: None,
             chart_pipeline_vertex_id: None,
             chart_pipeline_vertex_id_state: SelectedPipelineVertexChartState::new(),
-            chart_jvm_heap_state: TimestampChartState::new(max_data_points),
-            chart_jvm_non_heap_state: TimestampChartState::new(max_data_points),
-            chart_process_cpu: TimestampChartState::new(max_data_points),
-            chart_flow_plugins_throughput: TimestampChartState::new(max_data_points),
-            chart_flow_queue_backpressure: TimestampChartState::new(max_data_points),
+            chart_jvm_heap_state: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
+            chart_jvm_non_heap_state: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
+            chart_process_cpu: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
+            chart_flow_plugins_throughput: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
+            chart_flow_queue_backpressure: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
             chart_flow_pipeline_plugins_throughput: Default::default(),
             chart_flow_pipeline_queue_backpressure: Default::default(),
         };
@@ -300,7 +293,8 @@ impl<'a> App<'a> {
             show_selected_pipeline_charts: false,
             show_selected_plugin_charts: false,
             should_quit: false,
-            tabs: TabsState::new(vec!["Pipelines", "Node"]),
+            connected: false,
+            tabs: TabsState::new(),
             pipelines: StatefulTable::new(),
             selected_pipeline_graph: StatefulTable::new(),
             data_fetcher: DataFetcher::new(api),
@@ -396,8 +390,27 @@ impl<'a> App<'a> {
     }
 
     pub fn on_tick(&mut self) {
-        self.state.node_info = self.data_fetcher.fetch_info();
-        self.state.node_stats = self.data_fetcher.fetch_stats();
+        match self.data_fetcher.fetch_info() {
+            Ok(stats) => {
+                self.state.node_info = Some(stats);
+                self.connected = true;
+            }
+            Err(_) => {
+                self.state.node_info = None;
+                self.connected = false;
+            }
+        };
+
+        match self.data_fetcher.fetch_stats() {
+            Ok(stats) => {
+                self.state.node_stats = Some(stats);
+                self.connected = true;
+            }
+            Err(_) => {
+                self.state.node_stats = None;
+                self.connected = false;
+            }
+        };
 
         if let Some(node_stats) = self.state.node_stats.clone() {
             self.state.chart_jvm_heap_state.push(JvmMemHeapDataPoint {
@@ -443,9 +456,10 @@ impl<'a> App<'a> {
                     .chart_flow_pipeline_plugins_throughput
                     .contains_key(name)
                 {
-                    self.state
-                        .chart_flow_pipeline_plugins_throughput
-                        .insert(name.to_string(), TimestampChartState::new(Some(60)));
+                    self.state.chart_flow_pipeline_plugins_throughput.insert(
+                        name.to_string(),
+                        TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
+                    );
                 }
 
                 self.state
@@ -487,7 +501,8 @@ impl<'a> App<'a> {
             return;
         }
 
-        if self.pipelines.selected_item().is_none() || self.state.chart_pipeline_vertex_id.is_none() {
+        if self.pipelines.selected_item().is_none() || self.state.chart_pipeline_vertex_id.is_none()
+        {
             return;
         }
 
@@ -556,7 +571,10 @@ impl<'a> App<'a> {
         chart_state: &mut HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
     ) {
         if !chart_state.contains_key(name) {
-            chart_state.insert(name.to_string(), TimestampChartState::new(Some(10)));
+            chart_state.insert(
+                name.to_string(),
+                TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
+            );
         }
 
         chart_state

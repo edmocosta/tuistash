@@ -12,7 +12,6 @@ pub struct Node {
     pub name: String,
     pub ephemeral_id: String,
     pub status: String,
-    pub snapshot: Option<bool>,
     pub pipeline: PipelineSettings,
 }
 
@@ -61,6 +60,12 @@ pub struct Vertex {
     pub meta: Option<VertexMeta>,
 }
 
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.eq(&other.id)
+    }
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VertexMeta {
@@ -76,17 +81,10 @@ pub struct VertexMetaSource {
     pub column: u32,
 }
 
-impl PartialEq for Vertex {
-    fn eq(&self, other: &Self) -> bool {
-        self.id.eq(&other.id)
-    }
-}
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PipelineInfo {
     pub ephemeral_id: String,
-    pub hash: String,
     pub workers: i64,
     pub batch_size: i64,
     pub batch_delay: i64,

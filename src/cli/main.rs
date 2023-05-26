@@ -14,8 +14,19 @@ type ExitCode = i32;
 
 fn run() -> Result<ExitCode, AnyError> {
     let cli = cli::build_cli();
-    let api = api::Client::new(&cli.host, &cli.port, cli.username, cli.password, cli.skip_tls_verification).unwrap();
-    let config = Config { api: Arc::new(api) };
+    let username = cli.username.as_ref().map(|p| p.as_str());
+    let password = cli.password.as_ref().map(|p| p.as_str());
+    let api = api::Client::new(
+        &cli.host,
+        &cli.port,
+        username,
+        password,
+        cli.skip_tls_verification,
+    )
+    .unwrap();
+    let config = Config {
+        api: Arc::new(&api),
+    };
 
     let stdout = std::io::stdout();
     let mut stdout_lock = stdout.lock();

@@ -143,13 +143,13 @@ fn create_jvm_table(node_info: &NodeInfo) -> Table {
             jvm_start_time,
             format!(
                 "{} / {}",
-                humanize_bytes(jvm.mem.heap_init_in_bytes),
-                humanize_bytes(jvm.mem.heap_max_in_bytes)
+                humanize_bytes(&jvm.mem.heap_init_in_bytes),
+                humanize_bytes(&jvm.mem.heap_max_in_bytes)
             ),
             format!(
                 "{} / {}",
-                humanize_bytes(jvm.mem.non_heap_init_in_bytes),
-                humanize_bytes(jvm.mem.non_heap_max_in_bytes)
+                humanize_bytes(&jvm.mem.non_heap_init_in_bytes),
+                humanize_bytes(&jvm.mem.non_heap_max_in_bytes)
             ),
             jvm.gc_collectors.join(", "),
         ]);
@@ -240,6 +240,6 @@ fn add_all_tables(builder: &mut Builder, node_info: &NodeInfo) {
     builder.add_record(vec![create_os_table(node_info).to_string()]);
 }
 
-fn humanize_bytes(b: i64) -> String {
-    format_size_i(b, DECIMAL)
+fn humanize_bytes(b: &i64) -> String {
+    format_size_i(*b, DECIMAL)
 }

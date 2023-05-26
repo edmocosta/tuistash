@@ -1,30 +1,17 @@
-use tui::widgets::{TableState};
+use tui::widgets::TableState;
 
 // Tabs
-pub struct TabsState<'a> {
-    pub titles: Vec<&'a str>,
+pub struct TabsState {
     pub index: usize,
 }
 
-impl<'a> TabsState<'a> {
-    pub fn new(titles: Vec<&'a str>) -> TabsState {
-        TabsState { titles, index: 0 }
+impl<'a> TabsState {
+    pub fn new() -> TabsState {
+        TabsState { index: 0 }
     }
 
     pub fn select(&mut self, index: usize) {
         self.index = index;
-    }
-
-    pub fn next(&mut self) {
-        self.index = (self.index + 1) % self.titles.len();
-    }
-
-    pub fn previous(&mut self) {
-        if self.index > 0 {
-            self.index -= 1;
-        } else {
-            self.index = self.titles.len() - 1;
-        }
     }
 }
 

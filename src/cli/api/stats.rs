@@ -2,27 +2,18 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::Value;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct NodeStats {
-    pub host: String,
     pub version: String,
-    pub http_address: String,
-    pub id: String,
-    pub name: String,
-    pub ephemeral_id: String,
-    pub status: String,
-    pub snapshot: Option<bool>,
     pub pipeline: PipelineDefaultSettings,
     pub jvm: Jvm,
     pub process: Process,
     pub events: Events,
     pub flow: Flow,
     pub pipelines: HashMap<String, PipelineStats>,
-    pub reloads: ReloadsStat,
-    pub os: Os,
+    pub reloads: Reloads,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -31,8 +22,8 @@ pub struct NodeStatsVertex {
     pub id: String,
     pub pipeline_ephemeral_id: String,
     pub events_out: i64,
-    pub duration_in_millis: u64,
     pub events_in: i64,
+    pub duration_in_millis: u64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -48,7 +39,6 @@ pub struct PipelineDefaultSettings {
 pub struct Jvm {
     pub threads: JvmThreads,
     pub mem: JvmMem,
-    pub gc: JvmGc,
     pub uptime_in_millis: u64,
 }
 
@@ -68,45 +58,6 @@ pub struct JvmMem {
     pub heap_used_in_bytes: i64,
     pub non_heap_used_in_bytes: i64,
     pub non_heap_committed_in_bytes: i64,
-    pub pools: JvmMemPools,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct JvmMemPools {
-    pub survivor: JvmMemPoolStat,
-    pub old: JvmMemPoolStat,
-    pub young: JvmMemPoolStat,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct JvmMemPoolStat {
-    pub peak_used_in_bytes: i64,
-    pub used_in_bytes: i64,
-    pub peak_max_in_bytes: i64,
-    pub max_in_bytes: i64,
-    pub committed_in_bytes: i64,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct JvmGc {
-    pub collectors: JvmGcCollectors,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct JvmGcCollectors {
-    pub old: JvmGcCollectorStats,
-    pub young: JvmGcCollectorStats,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct JvmGcCollectorStats {
-    pub collection_time_in_millis: i64,
-    pub collection_count: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -115,14 +66,7 @@ pub struct Process {
     pub open_file_descriptors: i64,
     pub peak_open_file_descriptors: i64,
     pub max_file_descriptors: i64,
-    pub mem: ProcessMem,
     pub cpu: ProcessCpu,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ProcessMem {
-    pub total_virtual_in_bytes: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -149,8 +93,6 @@ pub struct Events {
     pub out: i64,
     pub duration_in_millis: u64,
     pub queue_push_duration_in_millis: u64,
-    pub in_field: i64,
-    pub writes_in: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -166,14 +108,89 @@ pub struct Flow {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FlowMetricValue {
+    #[serde(with = "infinity_f64_value")]
     pub current: f64,
+    #[serde(with = "optional_infinity_f64_value")]
     pub last_1_minute: Option<f64>,
+    #[serde(with = "optional_infinity_f64_value")]
     pub last_5_minutes: Option<f64>,
+    #[serde(with = "optional_infinity_f64_value")]
     pub last_15_minutes: Option<f64>,
+    #[serde(with = "optional_infinity_f64_value")]
     pub last_1_hour: Option<f64>,
+    #[serde(with = "optional_infinity_f64_value")]
     pub last_24_hours: Option<f64>,
+    #[serde(with = "infinity_f64_value")]
     pub lifetime: f64,
 }
+
+mod infinity_f64_value {
+    use serde::de::{Deserialize, Deserializer};
+    use serde::ser::Serializer;
+
+    pub fn serialize<S>(
+        value: &f64,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        return serializer.serialize_f64(*value);
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<f64, D::Error>
+        where
+            D: Deserializer<'de>,
+    {
+
+        return match f64::deserialize(deserializer) {
+            Ok(v) => {
+                Ok(v)
+            }
+            Err(_) => {
+                Ok(f64::INFINITY)
+            }
+        };
+    }
+}
+
+mod optional_infinity_f64_value {
+    use serde::de::{Deserialize, Deserializer};
+    use serde::ser::Serializer;
+
+    pub fn serialize<S>(
+        value: &Option<f64>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        return if let Some(v) = value {
+            serializer.serialize_f64(*v)
+        } else {
+            serializer.serialize_none()
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<f64>, D::Error>
+        where
+            D: Deserializer<'de>,
+    {
+        return match f64::deserialize(deserializer) {
+            Ok(v) => {
+               Ok(Some(v))
+            }
+            Err(_) => {
+                Ok(Some(f64::INFINITY))
+            }
+        };
+    }
+}
+
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -189,10 +206,8 @@ pub struct PipelineStats {
 
 mod vertices {
     use std::collections::HashMap;
-
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
-
     use super::NodeStatsVertex;
 
     pub fn serialize<S>(
@@ -265,10 +280,8 @@ impl Plugins {
 
 mod plugins {
     use std::collections::HashMap;
-
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
-
     use crate::api::stats::Plugin;
 
     pub fn serialize<S>(map: &HashMap<String, Plugin>, serializer: S) -> Result<S::Ok, S::Error>
@@ -295,12 +308,7 @@ mod plugins {
 #[serde(default)]
 pub struct Plugin {
     pub id: String,
-    pub events: Events,
-    pub name: String,
     pub flow: Option<PluginFlow>,
-    pub failures: Option<i64>,
-    pub encode: Option<Events>,
-    pub decode: Option<Events>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -312,17 +320,8 @@ pub struct PluginFlow {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct PatternsPerField {
-    pub message: i64,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
 pub struct Reloads {
-    pub last_error: Value,
     pub successes: i64,
-    pub last_success_timestamp: Value,
-    pub last_failure_timestamp: Value,
     pub failures: i64,
 }
 
@@ -354,48 +353,4 @@ pub struct QueueData {
     pub path: String,
     pub free_space_in_bytes: i64,
     pub storage_type: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ReloadsStat {
-    pub successes: i64,
-    pub failures: i64,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Os {
-    pub cgroup: OsCgroup,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct OsCgroup {
-    pub cpuacct: OsCgroupCpuacct,
-    pub cpu: OsCgroupCpu,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct OsCgroupCpuacct {
-    pub control_group: String,
-    pub usage_nanos: i64,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct OsCgroupCpu {
-    pub control_group: String,
-    pub cfs_period_micros: i64,
-    pub cfs_quota_micros: i64,
-    pub stat: OsCgroupCpuStat,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct OsCgroupCpuStat {
-    pub number_of_elapsed_periods: i64,
-    pub number_of_times_throttled: i64,
-    pub time_throttled_nanos: i64,
 }

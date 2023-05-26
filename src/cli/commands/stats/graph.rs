@@ -31,14 +31,16 @@ pub struct VertexEdge<'a> {
 pub struct PipelineGraph<'a> {
     pub vertices: HashMap<&'a str, Vec<VertexEdge<'a>>>,
     pub data: HashMap<&'a str, Data<'a, Vertex>>,
-    pub inputs: HashSet<&'a str>,
+    pub heads: Vec<&'a str>,
 }
 
 impl<'a> PipelineGraph<'a> {
     pub fn from(graph_value: &'a GraphDefinition) -> Self {
         let mut vertices: HashMap<&'a str, Vec<VertexEdge<'a>>> = HashMap::new();
+        let mut inputs_incoming_edge: HashMap<&'a str, &'a str> = HashMap::new();
         let mut data: HashMap<&'a str, Data<'a, Vertex>> = HashMap::new();
         let mut inputs: HashSet<&'a str> = HashSet::new();
+        let mut heads: Vec<&'a str> = Vec::new();
 
         for vertex in &graph_value.vertices {
             let id = vertex.id.as_str();
@@ -62,35 +64,62 @@ impl<'a> PipelineGraph<'a> {
                     r#type: edge.r#type.to_string(),
                     when: edge.when,
                 });
+
+            let edge_to_vertex = data.get(edge.to.as_str()).unwrap();
+            if edge_to_vertex.value.plugin_type == "input" || edge_to_vertex.value.r#type == "if" {
+                inputs_incoming_edge.insert(edge.to.as_str(), edge.from.as_str());
+            }
         }
 
+        let sort_by_source_fn = Self::sort_vertices_by_source();
         for vertex in &graph_value.vertices {
             let neighbours = vertices.get_mut(vertex.id.as_str()).unwrap();
-
-            // Sort by source line or column
             neighbours.sort_by(|a, b| {
-                let a_vertex = &data.get(a.vertex_id).unwrap().value;
-                let b_vertex = &data.get(b.vertex_id).unwrap().value;
-
-                if let Some(a_vertex_source) = a_vertex.meta.as_ref().map(|m| &m.source) {
-                    if let Some(b_vertex_source) = b_vertex.meta.as_ref().map(|m| &m.source) {
-                        let line_order = a_vertex_source.line.cmp(&b_vertex_source.line);
-                        if line_order == Ordering::Equal {
-                            return a_vertex_source.column.cmp(&b_vertex_source.column);
-                        }
-
-                        return line_order;
-                    }
-                }
-
-                return Ordering::Equal;
+                sort_by_source_fn(
+                    data.get(a.vertex_id).unwrap().value,
+                    data.get(b.vertex_id).unwrap().value,
+                )
             });
         }
 
+        for vertex_id in &inputs {
+            if !inputs_incoming_edge.contains_key(vertex_id) {
+                heads.push(vertex_id);
+            } else {
+                let mut current: &str = vertex_id;
+                while inputs_incoming_edge.contains_key(current) {
+                    current = inputs_incoming_edge.get(current).unwrap();
+                }
+
+                heads.push(current);
+            }
+        }
+
+        heads.sort_by(|a, b| {
+            sort_by_source_fn(data.get(a).unwrap().value, data.get(b).unwrap().value)
+        });
+
         PipelineGraph {
+            heads,
             vertices,
             data,
-            inputs,
         }
+    }
+
+    fn sort_vertices_by_source() -> impl Fn(&'a Vertex, &'a Vertex) -> Ordering {
+        return |a_vertex: &'a Vertex, b_vertex: &'a Vertex| {
+            if let Some(a_vertex_source) = a_vertex.meta.as_ref().map(|m| &m.source) {
+                if let Some(b_vertex_source) = b_vertex.meta.as_ref().map(|m| &m.source) {
+                    let line_order = a_vertex_source.line.cmp(&b_vertex_source.line);
+                    if line_order == Ordering::Equal {
+                        return a_vertex_source.column.cmp(&b_vertex_source.column);
+                    }
+
+                    return line_order;
+                }
+            }
+
+            return Ordering::Equal;
+        };
     }
 }

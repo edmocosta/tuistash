@@ -27,15 +27,15 @@ impl RunnableCommand<NodeArgs> for NodeCommand {
 
         let info_types = &NodeCommand::parse_info_types(&args.types)?;
         if output_format == OutputFormat::Raw {
-            let raw = config.api.get_node_info_into_string(info_types, &vec![])?;
+            let raw = config.api.get_node_info_as_string(info_types, None)?;
             NodeCommand::write(out, raw.as_bytes())?;
         } else {
-            let node_info = config.api.get_node_info(info_types, &vec![])?;
+            let node_info = config.api.get_node_info_as_value(info_types, None)?;
             NodeCommand::write(
                 out,
                 output_format
                     .new_formatter()
-                    .format(&node_info, Some(info_types))?
+                    .format_value(node_info, Some(info_types))?
                     .as_bytes(),
             )?;
         }

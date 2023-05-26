@@ -1,38 +1,45 @@
+use serde_json::Value;
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
 use crate::api::Client;
 use crate::errors::AnyError;
 
-impl Client {
-    pub fn get_node_info_into_string(
+impl Client<'_> {
+    pub const QUERY_NODE_INFO_GRAPH: &'static [(&'static str, &'static str)] = &[("graph", "true")];
+    pub const QUERY_NODE_STATS_VERTICES: &'static [(&'static str, &'static str)] =
+        &[("vertices", "true")];
+
+    pub fn get_node_info_as_string(
         &self,
         types: &[NodeInfoType],
-        _args: &[&str],
+        query: Option<&[(&str, &str)]>,
     ) -> Result<String, AnyError> {
-        let response = self.request("GET", &self.node_info_request_path(types), None)?;
+        let response = self.request("GET", &self.node_info_request_path(types), query)?;
         Ok(response.into_string()?)
+    }
+
+    pub fn get_node_info_as_value(
+        &self,
+        types: &[NodeInfoType],
+        query: Option<&[(&str, &str)]>,
+    ) -> Result<Value, AnyError> {
+        let response = self.request("GET", &self.node_info_request_path(types), query)?;
+        let value: Value = response.into_json()?;
+        return Ok(value);
     }
 
     pub fn get_node_info(
         &self,
         types: &[NodeInfoType],
-        _args: &[&str],
+        query: Option<&[(&str, &str)]>,
     ) -> Result<NodeInfo, AnyError> {
-        let response = self.request(
-            "GET",
-            &self.node_info_request_path(types),
-            Some(&[("graph".to_string(), "true".to_string())]),
-        )?;
+        let response = self.request("GET", &self.node_info_request_path(types), query)?;
         let node_info: NodeInfo = response.into_json()?;
         Ok(node_info)
     }
 
-    pub fn get_node_stats(&self) -> Result<NodeStats, AnyError> {
-        let response = self.request(
-            "GET",
-            &self.node_request_path("stats"),
-            Some(&[("vertices".to_string(), "true".to_string())]),
-        )?;
+    pub fn get_node_stats(&self, query: Option<&[(&str, &str)]>) -> Result<NodeStats, AnyError> {
+        let response = self.request("GET", &self.node_request_path("stats"), query)?;
         let node_stats: NodeStats = response.into_json()?;
         Ok(node_stats)
     }

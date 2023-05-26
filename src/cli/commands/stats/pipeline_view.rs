@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use std::vec;
 
 use tui::backend::Backend;
-use tui::Frame;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans, Text};
 use tui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
+use tui::Frame;
 use uuid::Uuid;
 
 use crate::api::node::Vertex;
@@ -17,9 +17,9 @@ use crate::commands::stats::flow_charts::{render_flow_chart, render_plugins_flow
 use crate::commands::stats::formatter::{DurationFormatter, NumberFormatter};
 use crate::commands::stats::graph::PipelineGraph;
 
-pub(crate) fn render_pipeline_viewer<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-    where
-        B: Backend,
+pub(crate) fn render_pipeline_vertices<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+where
+    B: Backend,
 {
     let render_pipeline_charts =
         app.show_selected_pipeline_charts && app.pipelines.selected_item().is_some();
@@ -60,20 +60,18 @@ pub(crate) fn render_pipeline_viewer<B>(f: &mut Frame<B>, app: &mut App, area: R
         let selected_style: Style = Style::default().add_modifier(Modifier::REVERSED);
 
         let header_cells = headers.iter().map(|h| Cell::from(*h).style(header_style));
-
         let header = Row::new(header_cells).style(row_style).height(1);
-
         let vertices_table = Table::new(rows)
             .header(header)
             .block(Block::default().borders(Borders::ALL).title("Pipeline"))
             .column_spacing(2)
             .highlight_style(selected_style)
             .widths(&[
-                Constraint::Percentage(50), // Name
+                Constraint::Percentage(55), // Name
                 Constraint::Percentage(7),  // Kind
-                Constraint::Percentage(14),  // In
-                Constraint::Percentage(14),  // Out
-                Constraint::Percentage(15), // Duration
+                Constraint::Percentage(12), // In
+                Constraint::Percentage(12), // Out
+                Constraint::Percentage(14), // Duration
             ]);
 
         f.render_stateful_widget(
@@ -131,9 +129,8 @@ fn create_plugin_row<'a>(
     ident_spaces: String,
     pipeline_stats: Option<&'a PipelineStats>,
 ) -> Row<'a> {
-    let plugin_name_cell;
-    if vertex.explicit_id {
-        plugin_name_cell = Cell::from(Spans::from(vec![
+    let plugin_name_cell = if vertex.explicit_id {
+        Cell::from(Spans::from(vec![
             Span::from(format!(
                 "{}{} ",
                 ident_spaces.to_string(),
@@ -143,14 +140,14 @@ fn create_plugin_row<'a>(
                 format!("({})", vertex.id.as_str()),
                 Style::default().fg(Color::Blue),
             ),
-        ]));
+        ]))
     } else {
-        plugin_name_cell = Cell::from(Text::from(format!(
+        Cell::from(Text::from(format!(
             "{}{}",
             ident_spaces.to_string(),
             vertex.config_name
-        )));
-    }
+        )))
+    };
 
     let mut cells = vec![
         plugin_name_cell,
@@ -200,16 +197,22 @@ fn create_rows<'a>(
     let mut visited: RefCell<HashSet<&str>> = RefCell::new(HashSet::with_capacity(
         selected_pipeline.graph.vertices.len(),
     ));
-    let mut stack: RefCell<Vec<(&str, i32, bool)>> = RefCell::new(Vec::new());
+    let mut stack: RefCell<Vec<(&str, Option<i32>, i32, bool)>> = RefCell::new(Vec::new());
 
-    //TODO: Handle multiple inputs
-    for input_id in &graph.inputs {
-        stack.get_mut().push((input_id, 0, false));
-        visited.get_mut().insert(input_id);
+    let mut head_stack = graph.heads.to_vec();
+    if head_stack.is_empty() {
+        return vec![];
     }
 
-    let mut table_rows: Vec<Row> = Vec::with_capacity(selected_pipeline.graph.edges.len());
-    while let Some((vertex_id, ident_level, add_else_row)) = stack.get_mut().pop() {
+    // Add first head
+    let first_head = head_stack.pop().unwrap();
+    visited.get_mut().insert(first_head);
+    stack.get_mut().push((first_head, None, 0, false));
+
+    let mut table_rows: Vec<Row> = Vec::new();
+    while let Some((vertex_id, mut next_row_index, ident_level, add_else_row)) =
+        stack.get_mut().pop()
+    {
         visited.get_mut().insert(vertex_id);
 
         let vertex = graph.data.get(vertex_id).unwrap().value;
@@ -218,17 +221,26 @@ fn create_rows<'a>(
             .collect::<String>();
         let mut next_ident_level = ident_level;
 
+        let mut push_row = |row| {
+            if let Some(i) = next_row_index {
+                table_rows.insert(i as usize, row);
+                next_row_index = Some(i + 1);
+            } else {
+                table_rows.push(row);
+            }
+        };
+
         if add_else_row {
-            table_rows.push(create_else_row(&ident_spaces));
+            push_row(create_else_row(&ident_spaces));
         }
 
         match vertex.r#type.as_str() {
             "if" => {
-                table_rows.push(create_if_row(vertex, ident_spaces));
+                push_row(create_if_row(vertex, ident_spaces));
                 next_ident_level += 1;
             }
-            "queue" => table_rows.push(create_queue_row(ident_spaces, selected_pipeline_stats)),
-            _ => table_rows.push(create_plugin_row(
+            "queue" => push_row(create_queue_row(ident_spaces, selected_pipeline_stats)),
+            _ => push_row(create_plugin_row(
                 vertex,
                 ident_spaces,
                 selected_pipeline_stats,
@@ -239,49 +251,77 @@ fn create_rows<'a>(
             &vertex.r#type,
             vertex_id,
             next_ident_level,
+            next_row_index,
             graph,
             &mut visited,
             &mut stack,
         );
+
+        if stack.borrow().is_empty() && !head_stack.is_empty() {
+            while let Some(vertex_id) = head_stack.pop() {
+                stack.get_mut().push((vertex_id, Some(0), 0, false));
+            }
+        }
     }
 
     return table_rows;
 }
 
-pub fn create_rows_ids<'a>(
+pub fn create_pipeline_vertex_ids<'a>(
     graph: &'a PipelineGraph,
     selected_pipeline: &PipelineItem,
 ) -> Vec<String> {
     let mut visited: RefCell<HashSet<&str>> = RefCell::new(HashSet::with_capacity(
         selected_pipeline.graph.vertices.len(),
     ));
-    let mut stack: RefCell<Vec<(&str, i32, bool)>> = RefCell::new(Vec::new());
+    let mut stack: RefCell<Vec<(&str, Option<i32>, i32, bool)>> = RefCell::new(Vec::new());
 
-    //TODO: Handle multiple inputs
-    for input_id in &graph.inputs {
-        stack.get_mut().push((input_id, 0, false));
-        visited.get_mut().insert(input_id);
+    let mut head_stack = graph.heads.to_vec();
+    if head_stack.is_empty() {
+        return vec![];
     }
 
+    // Add first head
+    let first_head = head_stack.pop().unwrap();
+    visited.get_mut().insert(first_head);
+    stack.get_mut().push((first_head, None, 0, false));
+
     let mut table_rows: Vec<String> = Vec::with_capacity(selected_pipeline.graph.edges.len());
-    while let Some((vertex_id, _, add_else_row)) = stack.get_mut().pop() {
+    while let Some((vertex_id, mut next_row_index, _, add_else_row)) = stack.get_mut().pop() {
         visited.get_mut().insert(vertex_id);
 
         let vertex = graph.data.get(vertex_id).unwrap().value;
 
+        let mut push_row = |row| {
+            if let Some(i) = next_row_index {
+                table_rows.insert(i as usize, row);
+                next_row_index = Some(i + 1);
+            } else {
+                table_rows.push(row);
+            }
+        };
+
         if add_else_row {
-            table_rows.push(Uuid::new_v4().to_string());
+            push_row(Uuid::new_v4().to_string());
         }
 
-        table_rows.push(vertex.id.to_string());
+        push_row(vertex.id.to_string());
+
         process_vertices_edges(
             &vertex.r#type,
             vertex_id,
             0,
+            next_row_index,
             graph,
             &mut visited,
             &mut stack,
         );
+
+        if stack.borrow().is_empty() && !head_stack.is_empty() {
+            while let Some(vertex_id) = head_stack.pop() {
+                stack.get_mut().push((vertex_id, Some(0), 0, false));
+            }
+        }
     }
 
     return table_rows;
@@ -291,9 +331,10 @@ fn process_vertices_edges<'a>(
     vertex_type: &'a str,
     vertex_id: &'a str,
     next_ident_level: i32,
+    next_row_index: Option<i32>,
     graph: &'a PipelineGraph,
     visited: &mut RefCell<HashSet<&str>>,
-    stack: &mut RefCell<Vec<(&'a str, i32, bool)>>,
+    stack: &mut RefCell<Vec<(&'a str, Option<i32>, i32, bool)>>,
 ) {
     if let Some(vertices) = graph.vertices.get(vertex_id) {
         if vertex_type == "if" {
@@ -319,20 +360,26 @@ fn process_vertices_edges<'a>(
                 if !visited.borrow().contains(edge.vertex_id) {
                     stack
                         .get_mut()
-                        .push((edge.vertex_id, next_ident_level, false));
+                        .push((edge.vertex_id, next_row_index, next_ident_level, false));
                 }
             }
 
             for (i, edge) in when_vertices[0].iter().rev().enumerate() {
                 if !visited.borrow().contains(edge.vertex_id) {
                     if (i + 1) == when_vertices[0].len() {
-                        stack
-                            .get_mut()
-                            .push((edge.vertex_id, next_ident_level, true));
+                        stack.get_mut().push((
+                            edge.vertex_id,
+                            next_row_index,
+                            next_ident_level,
+                            true,
+                        ));
                     } else {
-                        stack
-                            .get_mut()
-                            .push((edge.vertex_id, next_ident_level, false));
+                        stack.get_mut().push((
+                            edge.vertex_id,
+                            next_row_index,
+                            next_ident_level,
+                            false,
+                        ));
                     }
                 }
             }
@@ -341,7 +388,7 @@ fn process_vertices_edges<'a>(
                 if !visited.borrow().contains(edge.vertex_id) {
                     stack
                         .get_mut()
-                        .push((edge.vertex_id, next_ident_level, false));
+                        .push((edge.vertex_id, next_row_index, next_ident_level, false));
                 }
             }
         } else {
@@ -349,7 +396,7 @@ fn process_vertices_edges<'a>(
                 if !visited.borrow().contains(edge.vertex_id) {
                     stack
                         .get_mut()
-                        .push((edge.vertex_id, next_ident_level, false));
+                        .push((edge.vertex_id, next_row_index, next_ident_level, false));
                 }
             }
         }
@@ -357,8 +404,8 @@ fn process_vertices_edges<'a>(
 }
 
 fn render_selected_pipeline_flow_charts<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-    where
-        B: Backend,
+where
+    B: Backend,
 {
     let pipeline_flow_chunks = Layout::default()
         .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
@@ -401,7 +448,7 @@ fn render_selected_vertex_details<B>(
     }
 
     let chunks = Layout::default()
-        .constraints([Constraint::Length(6), Constraint::Percentage(90)])
+        .constraints([Constraint::Min(5), Constraint::Percentage(90)])
         .margin(1)
         .direction(Direction::Vertical)
         .split(area);
@@ -470,4 +517,63 @@ fn render_selected_vertex_details<B>(
             chart_chunks[next_chunk_index],
         );
     }
+}
+
+pub(crate) fn render_pipeline_events_block<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+where
+    B: Backend,
+{
+    let events_block = Block::default()
+        .title("Pipeline events")
+        .borders(Borders::ALL);
+
+    let events_text: Vec<Spans>;
+    if let Some(selected_pipeline) = &app.pipelines.selected_item() {
+        if let Some(node_stats) = &app.state.node_stats {
+            let selected_pipeline_stats =
+                node_stats.pipelines.get(&selected_pipeline.name).unwrap();
+
+            events_text = vec![Spans::from(vec![
+                Span::styled("In: ", Style::default().fg(Color::DarkGray)),
+                Span::from(selected_pipeline_stats.events.r#in.format_number()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Filtered: ", Style::default().fg(Color::DarkGray)),
+                Span::from(selected_pipeline_stats.events.filtered.format_number()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Out: ", Style::default().fg(Color::DarkGray)),
+                Span::from(selected_pipeline_stats.events.out.format_number()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    "Queue push duration (ms/e): ",
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::from(
+                    selected_pipeline_stats
+                        .events
+                        .queue_push_duration_in_millis
+                        .format_duration_per_event(selected_pipeline_stats.events.r#in as u64),
+                ),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Duration (ms/e): ", Style::default().fg(Color::DarkGray)),
+                Span::from(
+                    selected_pipeline_stats
+                        .events
+                        .duration_in_millis
+                        .format_duration_per_event(selected_pipeline_stats.events.out as u64),
+                ),
+            ])];
+        } else {
+            events_text = vec![];
+        }
+    } else {
+        events_text = vec![Spans::from(vec![Span::styled(
+            "Select a pipeline",
+            Style::default().fg(Color::DarkGray),
+        )])];
+    }
+
+    let info_paragraph = Paragraph::new(events_text)
+        .block(events_block)
+        .wrap(Wrap { trim: true });
+    f.render_widget(info_paragraph, area);
 }

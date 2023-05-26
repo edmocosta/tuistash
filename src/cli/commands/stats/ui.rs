@@ -13,7 +13,7 @@ use tui::{
 use crate::commands::stats::app::App;
 use crate::commands::stats::formatter::{DurationFormatter, NumberFormatter};
 use crate::commands::stats::node_charts::render_node_charts;
-use crate::commands::stats::pipeline_viewer;
+use crate::commands::stats::pipeline_view;
 
 pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let chunks = Layout::default()
@@ -29,32 +29,42 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(main_block, chunks[0]);
 
     let title_chunks = Layout::default()
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
         .direction(Direction::Horizontal)
         .margin(1)
         .split(chunks[0]);
 
-    let tab_titles = app
-        .tabs
-        .titles
-        .iter()
-        .map(|t| Spans::from(Span::styled(*t, Style::default().fg(Color::Green))))
-        .collect();
+    let tab_titles = vec![
+        Spans::from(vec![
+            Span::styled("P", Style::default().fg(Color::Green).add_modifier(Modifier::UNDERLINED)),
+            Span::styled("ipelines", Style::default().fg(Color::Green))
+        ]),
+        Spans::from(vec![
+            Span::styled("N", Style::default().fg(Color::Green).add_modifier(Modifier::UNDERLINED)),
+            Span::styled("ode", Style::default().fg(Color::Green))
+        ])
+    ];
 
     let tabs = Tabs::new(tab_titles)
         .block(Block::default().borders(Borders::NONE))
         .highlight_style(
             Style::default()
                 .fg(Color::Yellow)
-                .add_modifier(Modifier::UNDERLINED),
+                .add_modifier(Modifier::BOLD),
         )
         .select(app.tabs.index);
 
     f.render_widget(tabs, title_chunks[0]);
 
+    let conn_status_span: Span = if app.connected {
+        Span::styled("Connected", Style::default().fg(Color::Green))
+    } else {
+        Span::styled("Disconnected", Style::default().fg(Color::Red))
+    };
+
     if let Some(node_info) = &app.state.node_info {
         let status_text = vec![Spans::from(vec![
-            Span::styled("Connected", Style::default().fg(Color::Green)),
+            conn_status_span,
             Span::styled(" @ ", Style::default().fg(Color::Gray)),
             Span::from(node_info.node.http_address.to_string()),
             Span::styled(
@@ -99,13 +109,8 @@ where
     {
         // Node overview
         let events_block = Block::default().title("Overview").borders(Borders::ALL);
-
-        let overview_text: Vec<Spans>;
-        if let Some(node_stats) = &app.state.node_stats {
-            overview_text = vec![Spans::from(vec![
-                // Span::styled("Transport: ", Style::default().fg(Color::DarkGray)),
-                // Span::from(node_stats.http_address.as_str()),
-                // Span::styled(" | ", Style::default().fg(Color::Yellow)),
+        let overview_text: Vec<Spans> = if let Some(node_stats) = &app.state.node_stats {
+            vec![Spans::from(vec![
                 Span::styled("Events in: ", Style::default().fg(Color::DarkGray)),
                 Span::from(node_stats.events.r#in.format_number()),
                 Span::styled(" | ", Style::default().fg(Color::Yellow)),
@@ -129,13 +134,13 @@ where
                 Span::styled(" | ", Style::default().fg(Color::Yellow)),
                 Span::styled("Uptime: ", Style::default().fg(Color::DarkGray)),
                 Span::from(node_stats.jvm.uptime_in_millis.format_duration()),
-            ])];
+            ])]
         } else {
-            overview_text = vec![Spans::from(vec![Span::styled(
+            vec![Spans::from(vec![Span::styled(
                 "-",
                 Style::default().fg(Color::DarkGray),
-            )])];
-        }
+            )])]
+        };
 
         let info_paragraph = Paragraph::new(overview_text)
             .block(events_block)
@@ -183,15 +188,14 @@ where
         .collect();
 
     let headers = vec!["Name"];
-
     let header_style: Style = Style::default()
         .fg(Color::Gray)
         .add_modifier(Modifier::BOLD);
+
     let row_style: Style = Style::default().bg(Color::DarkGray);
     let selected_style: Style = Style::default().add_modifier(Modifier::REVERSED);
 
     let header_cells = headers.iter().map(|h| Cell::from(*h).style(header_style));
-
     let header = Row::new(header_cells).style(row_style).height(1);
 
     let pipelines = Table::new(rows)
@@ -215,62 +219,7 @@ where
         .direction(Direction::Vertical)
         .split(area);
     {
-        // Pipeline info
-        let events_block = Block::default()
-            .title("Pipeline events")
-            .borders(Borders::ALL);
-
-        let events_text: Vec<Spans>;
-        if let Some(selected_pipeline) = &app.pipelines.selected_item() {
-            if let Some(node_stats) = &app.state.node_stats {
-                let selected_pipeline_stats =
-                    node_stats.pipelines.get(&selected_pipeline.name).unwrap();
-
-                events_text = vec![Spans::from(vec![
-                    Span::styled("In: ", Style::default().fg(Color::DarkGray)),
-                    Span::from(selected_pipeline_stats.events.r#in.format_number()),
-                    Span::styled(" | ", Style::default().fg(Color::Yellow)),
-                    Span::styled("Filtered: ", Style::default().fg(Color::DarkGray)),
-                    Span::from(selected_pipeline_stats.events.filtered.format_number()),
-                    Span::styled(" | ", Style::default().fg(Color::Yellow)),
-                    Span::styled("Out: ", Style::default().fg(Color::DarkGray)),
-                    Span::from(selected_pipeline_stats.events.out.format_number()),
-                    Span::styled(" | ", Style::default().fg(Color::Yellow)),
-                    Span::styled(
-                        "Queue push duration (ms/e): ",
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::from(
-                        selected_pipeline_stats
-                            .events
-                            .queue_push_duration_in_millis
-                            .format_duration_per_event(selected_pipeline_stats.events.r#in as u64),
-                    ),
-                    Span::styled(" | ", Style::default().fg(Color::Yellow)),
-                    Span::styled("Duration (ms/e): ", Style::default().fg(Color::DarkGray)),
-                    Span::from(
-                        selected_pipeline_stats
-                            .events
-                            .duration_in_millis
-                            .format_duration_per_event(selected_pipeline_stats.events.out as u64),
-                    ),
-                ])];
-            } else {
-                events_text = vec![];
-            }
-        } else {
-            events_text = vec![Spans::from(vec![Span::styled(
-                "Select a pipeline",
-                Style::default().fg(Color::DarkGray),
-            )])];
-        }
-
-        let info_paragraph = Paragraph::new(events_text)
-            .block(events_block)
-            .wrap(Wrap { trim: true });
-        f.render_widget(info_paragraph, chunks[0]);
-
-        // Pipeline
-        pipeline_viewer::render_pipeline_viewer(f, app, chunks[1]);
+        pipeline_view::render_pipeline_events_block(f, app, chunks[0]);
+        pipeline_view::render_pipeline_vertices(f, app, chunks[1]);
     }
 }

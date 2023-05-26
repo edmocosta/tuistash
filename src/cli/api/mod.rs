@@ -13,27 +13,23 @@ pub mod node_api;
 pub mod stats;
 mod tls;
 
-pub struct Client {
+pub struct Client<'a> {
     client: Agent,
-    config: ClientConfig,
+    config: ClientConfig<'a>,
 }
 
-pub struct ClientConfig {
+pub struct ClientConfig<'a> {
     base_url: String,
-    username: Option<String>,
-    password: Option<String>,
+    username: Option<&'a str>,
+    password: Option<&'a str>,
 }
 
-impl ClientConfig {
+impl ClientConfig<'_> {
     pub fn basic_auth_header(&self) -> String {
         let mut buf = b"Basic ".to_vec();
         {
             let mut encoder = EncoderWriter::new(&mut buf, &BASE64_STANDARD);
-            let _ = write!(
-                encoder,
-                "{}:",
-                &self.username.clone().unwrap_or(String::new())
-            );
+            let _ = write!(encoder, "{}:", &self.username.unwrap_or(""));
             if let Some(password) = &self.password {
                 let _ = write!(encoder, "{}", password);
             }
@@ -43,12 +39,12 @@ impl ClientConfig {
     }
 }
 
-impl Client {
+impl<'a> Client<'a> {
     pub fn new(
-        host: &str,
-        port: &u16,
-        username: Option<String>,
-        password: Option<String>,
+        host: &'a str,
+        port: &'a u16,
+        username: Option<&'a str>,
+        password: Option<&'a str>,
         skip_tls_verification: bool,
     ) -> Result<Self, AnyError> {
         let base_url = format!("{}:{}", host, port);
@@ -81,7 +77,7 @@ impl Client {
         &self,
         method: &str,
         request_path: &str,
-        query: Option<&[(String, String)]>,
+        query: Option<&[(&str, &str)]>,
     ) -> Result<Response, AnyError> {
         let path = format!("{}/{}", self.config.base_url, request_path);
         let mut request = self.client.request(method, &path);
