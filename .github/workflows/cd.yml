@@ -7,6 +7,7 @@ jobs:
   publish:
     name: Publishing for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions: write-all
     strategy:
       matrix:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
