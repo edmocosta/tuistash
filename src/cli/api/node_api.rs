@@ -25,7 +25,7 @@ impl Client<'_> {
     ) -> Result<Value, AnyError> {
         let response = self.request("GET", &self.node_info_request_path(types), query)?;
         let value: Value = response.into_json()?;
-        return Ok(value);
+        Ok(value)
     }
 
     pub fn get_node_info(
@@ -56,7 +56,7 @@ impl Client<'_> {
         }
 
         let filters = filterable_types.join(",");
-        return self.node_request_path(&filters);
+        self.node_request_path(&filters)
     }
 
     fn node_request_path(&self, request_path: &str) -> String {
@@ -64,6 +64,6 @@ impl Client<'_> {
             return "_node".to_string();
         }
 
-        return format!("{}/{}", "_node", request_path);
+        format!("{}/{}", "_node", request_path)
     }
 }

@@ -52,8 +52,7 @@ fn create_info_table(node_info: &NodeInfo) -> Table {
 
     let mut table = builder.build();
     table.with(Style::empty());
-
-    return table;
+    table
 }
 
 fn create_pipelines_table(node_info: &NodeInfo) -> Table {
@@ -87,8 +86,7 @@ fn create_pipelines_table(node_info: &NodeInfo) -> Table {
 
     let mut table = builder.build();
     table.with(Style::empty());
-
-    return table;
+    table
 }
 
 fn create_os_table(node_info: &NodeInfo) -> Table {
@@ -113,8 +111,7 @@ fn create_os_table(node_info: &NodeInfo) -> Table {
 
     let mut table = builder.build();
     table.with(Style::empty());
-
-    return table;
+    table
 }
 
 fn create_jvm_table(node_info: &NodeInfo) -> Table {
@@ -157,8 +154,7 @@ fn create_jvm_table(node_info: &NodeInfo) -> Table {
 
     let mut table = builder.build();
     table.with(Style::empty());
-
-    return table;
+    table
 }
 
 fn new_default_table(node_info: &NodeInfo, types: Option<&[NodeInfoType]>) -> Table {
@@ -200,8 +196,7 @@ fn new_default_table(node_info: &NodeInfo, types: Option<&[NodeInfoType]>) -> Ta
 
     let mut table = builder.build();
     table.with(Style::blank());
-
-    return table;
+    table
 }
 
 fn add_section_separator(

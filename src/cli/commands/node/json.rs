@@ -61,5 +61,5 @@ pub(crate) fn remove_unlisted_fields(
         }
     }
 
-    return Ok(Value::Object(inner_map));
+    Ok(Value::Object(inner_map))
 }

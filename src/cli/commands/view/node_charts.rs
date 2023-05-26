@@ -119,7 +119,7 @@ where
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(app.state.chart_jvm_heap_state.x_axis_bounds().clone())
+                .bounds(*app.state.chart_jvm_heap_state.x_axis_bounds())
                 .labels(create_timestamp_label_spans(
                     app.state
                         .chart_jvm_heap_state
@@ -129,7 +129,7 @@ where
         .y_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(app.state.chart_jvm_heap_state.y_axis_bounds().clone())
+                .bounds(*app.state.chart_jvm_heap_state.y_axis_bounds())
                 .labels(create_binary_size_label_spans(
                     app.state
                         .chart_jvm_heap_state
@@ -205,7 +205,7 @@ where
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(app.state.chart_jvm_non_heap_state.x_axis_bounds().clone())
+                .bounds(*app.state.chart_jvm_non_heap_state.x_axis_bounds())
                 .labels(create_timestamp_label_spans(
                     app.state
                         .chart_jvm_non_heap_state
@@ -215,7 +215,7 @@ where
         .y_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(app.state.chart_jvm_non_heap_state.y_axis_bounds().clone())
+                .bounds(*app.state.chart_jvm_non_heap_state.y_axis_bounds())
                 .labels(create_binary_size_label_spans(
                     app.state
                         .chart_jvm_non_heap_state
@@ -263,7 +263,7 @@ where
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(app.state.chart_process_cpu.x_axis_bounds().clone())
+                .bounds(*app.state.chart_process_cpu.x_axis_bounds())
                 .labels(create_timestamp_label_spans(
                     app.state
                         .chart_process_cpu
@@ -273,7 +273,7 @@ where
         .y_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(app.state.chart_process_cpu.y_axis_bounds().clone())
+                .bounds(*app.state.chart_process_cpu.y_axis_bounds())
                 .labels(create_percentage_label_spans(
                     app.state
                         .chart_process_cpu

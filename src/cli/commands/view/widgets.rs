@@ -5,7 +5,7 @@ pub struct TabsState {
     pub index: usize,
 }
 
-impl<'a> TabsState {
+impl TabsState {
     pub fn new() -> TabsState {
         TabsState { index: 0 }
     }
@@ -21,7 +21,7 @@ pub struct StatefulTable<T> {
     pub items: Vec<T>,
 }
 
-impl<'a, T> StatefulTable<T> {
+impl<T> StatefulTable<T> {
     pub fn new() -> Self {
         StatefulTable {
             state: TableState::default(),
@@ -30,10 +30,10 @@ impl<'a, T> StatefulTable<T> {
     }
 
     pub fn selected_item(&self) -> Option<&T> {
-        return match self.state.selected() {
+        match self.state.selected() {
             None => None,
             Some(index) => Some(&self.items[index]),
-        };
+        }
     }
 
     pub fn unselect(&mut self) {

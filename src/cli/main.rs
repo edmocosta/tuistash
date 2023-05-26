@@ -1,7 +1,6 @@
 use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
-use std::sync::Arc;
 
 mod api;
 mod cli;
@@ -14,8 +13,8 @@ type ExitCode = i32;
 
 fn run() -> Result<ExitCode, AnyError> {
     let cli = cli::build_cli();
-    let username = cli.username.as_ref().map(|p| p.as_str());
-    let password = cli.password.as_ref().map(|p| p.as_str());
+    let username = cli.username.as_deref();
+    let password = cli.password.as_deref();
     let api = api::Client::new(
         &cli.host,
         &cli.port,
@@ -25,7 +24,7 @@ fn run() -> Result<ExitCode, AnyError> {
     )
     .unwrap();
     let config = Config {
-        api: Arc::new(&api),
+        api: &api,
     };
 
     let stdout = std::io::stdout();
@@ -33,7 +32,7 @@ fn run() -> Result<ExitCode, AnyError> {
     let mut out = Output::new(&mut stdout_lock);
 
     cli.command.execute(&mut out, &config)?;
-    return Ok(0);
+    Ok(0)
 }
 
 fn main() {

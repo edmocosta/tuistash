@@ -43,7 +43,7 @@ where
         if let Some(selected_pipeline) = app.pipelines.selected_item() {
             pipeline_graph = Some(PipelineGraph::from(&selected_pipeline.graph));
             rows = create_rows(
-                &pipeline_graph.as_ref().unwrap(),
+                pipeline_graph.as_ref().unwrap(),
                 selected_pipeline,
                 &app.state,
             );
@@ -133,7 +133,7 @@ fn create_plugin_row<'a>(
         Cell::from(Spans::from(vec![
             Span::from(format!(
                 "{}{} ",
-                ident_spaces.to_string(),
+                ident_spaces,
                 vertex.config_name
             )),
             Span::styled(
@@ -144,7 +144,7 @@ fn create_plugin_row<'a>(
     } else {
         Cell::from(Text::from(format!(
             "{}{}",
-            ident_spaces.to_string(),
+            ident_spaces,
             vertex.config_name
         )))
     };
@@ -156,12 +156,11 @@ fn create_plugin_row<'a>(
 
     if let Some(stats) = pipeline_stats {
         let events = stats.vertices.get(vertex.id.as_str()).unwrap();
-        let events_count;
-        if vertex.plugin_type == "input" {
-            events_count = events.events_out
+        let events_count= if vertex.plugin_type == "input" {
+            events.events_out
         } else {
-            events_count = events.events_in
-        }
+            events.events_in
+        };
 
         cells.push(Cell::from(Text::from(events.events_in.format_number())));
         cells.push(Cell::from(Text::from(events.events_out.format_number())));
@@ -184,6 +183,8 @@ fn create_else_row<'a>(ident_spaces: &str) -> Row<'a> {
     Row::new(vec![Cell::from(else_text)])
 }
 
+type GraphVisitorStack<'b> = RefCell<Vec<(&'b str, Option<i32>, i32, bool)>>;
+
 fn create_rows<'a>(
     graph: &'a PipelineGraph,
     selected_pipeline: &PipelineItem,
@@ -197,7 +198,7 @@ fn create_rows<'a>(
     let mut visited: RefCell<HashSet<&str>> = RefCell::new(HashSet::with_capacity(
         selected_pipeline.graph.vertices.len(),
     ));
-    let mut stack: RefCell<Vec<(&str, Option<i32>, i32, bool)>> = RefCell::new(Vec::new());
+    let mut stack: GraphVisitorStack = RefCell::new(Vec::new());
 
     let mut head_stack = graph.heads.to_vec();
     if head_stack.is_empty() {
@@ -216,9 +217,7 @@ fn create_rows<'a>(
         visited.get_mut().insert(vertex_id);
 
         let vertex = graph.data.get(vertex_id).unwrap().value;
-        let ident_spaces = std::iter::repeat(" ")
-            .take(ident_level as usize)
-            .collect::<String>();
+        let ident_spaces = " ".repeat(ident_level as usize);
         let mut next_ident_level = ident_level;
 
         let mut push_row = |row| {
@@ -264,18 +263,17 @@ fn create_rows<'a>(
         }
     }
 
-    return table_rows;
+    table_rows
 }
 
-pub fn create_pipeline_vertex_ids<'a>(
-    graph: &'a PipelineGraph,
+pub fn create_pipeline_vertex_ids(
+    graph: &PipelineGraph,
     selected_pipeline: &PipelineItem,
 ) -> Vec<String> {
     let mut visited: RefCell<HashSet<&str>> = RefCell::new(HashSet::with_capacity(
         selected_pipeline.graph.vertices.len(),
     ));
-    let mut stack: RefCell<Vec<(&str, Option<i32>, i32, bool)>> = RefCell::new(Vec::new());
-
+    let mut stack: GraphVisitorStack= RefCell::new(Vec::new());
     let mut head_stack = graph.heads.to_vec();
     if head_stack.is_empty() {
         return vec![];
@@ -324,7 +322,7 @@ pub fn create_pipeline_vertex_ids<'a>(
         }
     }
 
-    return table_rows;
+    table_rows
 }
 
 fn process_vertices_edges<'a>(
@@ -334,7 +332,7 @@ fn process_vertices_edges<'a>(
     next_row_index: Option<i32>,
     graph: &'a PipelineGraph,
     visited: &mut RefCell<HashSet<&str>>,
-    stack: &mut RefCell<Vec<(&'a str, Option<i32>, i32, bool)>>,
+    stack: &mut GraphVisitorStack<'a>,
 ) {
     if let Some(vertices) = graph.vertices.get(vertex_id) {
         if vertex_type == "if" {
@@ -505,7 +503,7 @@ fn render_selected_vertex_details<B>(
         .split(chunks[1]);
 
     if let Some(throughput) = throughput_state {
-        render_flow_chart(f, "Throughput", &throughput, chart_chunks[next_chunk_index]);
+        render_flow_chart(f, "Throughput", throughput, chart_chunks[next_chunk_index]);
         next_chunk_index += 1;
     }
 
@@ -513,7 +511,7 @@ fn render_selected_vertex_details<B>(
         render_flow_chart(
             f,
             "Worker Utilization",
-            &worker_utilization_state,
+            worker_utilization_state,
             chart_chunks[next_chunk_index],
         );
     }

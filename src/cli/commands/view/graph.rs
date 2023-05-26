@@ -107,7 +107,7 @@ impl<'a> PipelineGraph<'a> {
     }
 
     fn sort_vertices_by_source() -> impl Fn(&'a Vertex, &'a Vertex) -> Ordering {
-        return |a_vertex: &'a Vertex, b_vertex: &'a Vertex| {
+        |a_vertex: &'a Vertex, b_vertex: &'a Vertex| {
             if let Some(a_vertex_source) = a_vertex.meta.as_ref().map(|m| &m.source) {
                 if let Some(b_vertex_source) = b_vertex.meta.as_ref().map(|m| &m.source) {
                     let line_order = a_vertex_source.line.cmp(&b_vertex_source.line);
@@ -118,8 +118,7 @@ impl<'a> PipelineGraph<'a> {
                     return line_order;
                 }
             }
-
-            return Ordering::Equal;
-        };
+            Ordering::Equal
+        }
     }
 }

@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 use std::{f64, i64};
 
 use chrono::Local;
 
-use crate::api;
 use crate::api::node::{GraphDefinition, NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
 use crate::api::Client;
@@ -16,11 +14,11 @@ use crate::commands::view::widgets::{StatefulTable, TabsState};
 use crate::errors::AnyError;
 
 struct DataFetcher<'a> {
-    api: Arc<&'a Client<'a>>,
+    api: &'a Client<'a>,
 }
 
 impl<'a> DataFetcher<'a> {
-    pub fn new(api: Arc<&'a api::Client>) -> DataFetcher<'a> {
+    pub fn new(api: &'a Client) -> DataFetcher<'a> {
         DataFetcher { api }
     }
 
@@ -99,14 +97,14 @@ pub struct PluginFlowMetricDataPoint {
 
 impl ChartDataPoint for PluginFlowMetricDataPoint {
     fn y_axis_bounds(&self) -> [f64; 2] {
-        return [
+        [
             f64::min(f64::min(self.input, self.filter), self.output),
             f64::max(f64::max(self.input, self.filter), self.output),
-        ];
+        ]
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
-        return [self.timestamp as f64, self.timestamp as f64];
+        [self.timestamp as f64, self.timestamp as f64]
     }
 }
 
@@ -117,11 +115,11 @@ pub struct FlowMetricDataPoint {
 
 impl ChartDataPoint for FlowMetricDataPoint {
     fn y_axis_bounds(&self) -> [f64; 2] {
-        return [self.value as f64, self.value as f64];
+        [self.value, self.value]
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
-        return [self.timestamp as f64, self.timestamp as f64];
+        [self.timestamp as f64, self.timestamp as f64]
     }
 }
 
@@ -132,11 +130,11 @@ pub struct ProcessCpuDataPoint {
 
 impl ChartDataPoint for ProcessCpuDataPoint {
     fn y_axis_bounds(&self) -> [f64; 2] {
-        return [self.percent as f64, self.percent as f64];
+        [self.percent as f64, self.percent as f64]
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
-        return [self.timestamp as f64, self.timestamp as f64];
+        [self.timestamp as f64, self.timestamp as f64]
     }
 }
 
@@ -148,7 +146,7 @@ pub struct JvmMemNonHeapDataPoint {
 
 impl ChartDataPoint for JvmMemNonHeapDataPoint {
     fn y_axis_bounds(&self) -> [f64; 2] {
-        return [
+        [
             f64::min(
                 self.non_heap_used_in_bytes as f64,
                 self.non_heap_committed_in_bytes as f64,
@@ -157,11 +155,11 @@ impl ChartDataPoint for JvmMemNonHeapDataPoint {
                 self.non_heap_used_in_bytes as f64,
                 self.non_heap_committed_in_bytes as f64,
             ),
-        ];
+        ]
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
-        return [self.timestamp as f64, self.timestamp as f64];
+        [self.timestamp as f64, self.timestamp as f64]
     }
 }
 
@@ -175,7 +173,7 @@ pub struct JvmMemHeapDataPoint {
 
 impl ChartDataPoint for JvmMemHeapDataPoint {
     fn y_axis_bounds(&self) -> [f64; 2] {
-        return [
+        [
             f64::min(
                 self.heap_max_in_bytes as f64,
                 self.heap_used_in_bytes as f64,
@@ -184,11 +182,11 @@ impl ChartDataPoint for JvmMemHeapDataPoint {
                 self.heap_max_in_bytes as f64,
                 self.heap_used_in_bytes as f64,
             ),
-        ];
+        ]
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
-        return [self.timestamp as f64, self.timestamp as f64];
+        [self.timestamp as f64, self.timestamp as f64]
     }
 }
 
@@ -218,7 +216,7 @@ impl SelectedPipelineVertexChartState {
             }
         }
 
-        return true;
+        true
     }
 
     pub fn reset(&mut self) {
@@ -249,9 +247,9 @@ pub(crate) struct AppState {
     pub chart_flow_queue_backpressure: TimestampChartState<FlowMetricDataPoint>,
 
     pub chart_flow_pipeline_plugins_throughput:
-        HashMap<String, TimestampChartState<PluginFlowMetricDataPoint>>,
+    HashMap<String, TimestampChartState<PluginFlowMetricDataPoint>>,
     pub chart_flow_pipeline_queue_backpressure:
-        HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
+    HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
 }
 
 pub(crate) struct App<'a> {
@@ -270,7 +268,7 @@ pub(crate) struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    pub fn new(title: &'a str, api: Arc<&'a api::Client>, refresh_interval: Duration) -> App<'a> {
+    pub fn new(title: &'a str, api: &'a Client, refresh_interval: Duration) -> App<'a> {
         let app_state = AppState {
             node_info: None,
             node_stats: None,
@@ -513,7 +511,7 @@ impl<'a> App<'a> {
         let selected_pipeline = self.pipelines.selected_item().unwrap();
 
         if let Some(pipeline_stats) = node_stats.pipelines.get(&selected_pipeline.name) {
-            if let Some(vertex_stats) = pipeline_stats.plugins.get(&vertex_id) {
+            if let Some(vertex_stats) = pipeline_stats.plugins.get(vertex_id) {
                 let flow = &vertex_stats.flow;
                 if flow.is_none() {
                     return;

@@ -132,7 +132,7 @@ mod infinity_f64_value {
     where
         S: Serializer,
     {
-        return serializer.serialize_f64(*value);
+        serializer.serialize_f64(*value)
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<f64, D::Error>
@@ -154,11 +154,11 @@ mod optional_infinity_f64_value {
     where
         S: Serializer,
     {
-        return if let Some(v) = value {
+        if let Some(v) = value {
             serializer.serialize_f64(*v)
         } else {
             serializer.serialize_none()
-        };
+        }
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>

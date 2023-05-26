@@ -47,11 +47,11 @@ impl TryFrom<&str> for OutputFormat {
 
 impl OutputFormat {
     pub fn new_formatter(&self) -> Box<dyn ValueFormatter> {
-        return match self {
+        match self {
             OutputFormat::Json => Box::new(JsonFormatter {}),
             OutputFormat::Table => Box::new(TableFormatter {}),
             OutputFormat::Default => Box::new(DefaultFormatter {}),
             _ => Box::new(DefaultFormatter {}),
-        };
+        }
     }
 }

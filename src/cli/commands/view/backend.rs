@@ -26,7 +26,7 @@ pub fn run(interval: Duration, config: &Config) -> Result<(), AnyError> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let app = App::new("Logstash", config.api.clone(), interval);
+    let app = App::new("Logstash", config.api, interval);
 
     run_app(&mut terminal, app, interval)?;
 

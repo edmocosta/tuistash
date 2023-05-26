@@ -12,14 +12,13 @@ impl DurationFormatter for u64 {
         }
 
         let secs = *self / 1000;
-        let duration: Duration;
-        if secs > 0 {
-            duration = Duration::from_secs(secs);
+        let duration= if secs > 0 {
+            Duration::from_secs(secs)
         } else {
-            duration = Duration::from_millis(*self);
-        }
+            Duration::from_millis(*self)
+        };
 
-        return humantime::format_duration(duration).to_string();
+        humantime::format_duration(duration).to_string()
     }
 
     fn format_duration_per_event(&self, events_count: u64) -> String {
@@ -28,7 +27,7 @@ impl DurationFormatter for u64 {
         }
 
         let duration = *self as f64 / events_count as f64;
-        return format!("{}", human_format::Formatter::new().format(duration));
+        human_format::Formatter::new().format(duration)
     }
 }
 

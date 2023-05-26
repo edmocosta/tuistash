@@ -41,14 +41,14 @@ impl RunnableCommand<NodeArgs> for NodeCommand {
             )?;
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
 impl NodeCommand {
     fn write(out: &mut Output, buf: &[u8]) -> Result<(), AnyError> {
-        out.handle.write(buf)?;
-        out.handle.write(b"\n")?;
+        out.handle.write_all(buf)?;
+        out.handle.write_all(b"\n")?;
         Ok(())
     }
 
@@ -56,7 +56,7 @@ impl NodeCommand {
         return match types {
             None => Ok(vec![NodeInfoType::All]),
             Some(values) => {
-                let parts = values.trim().split(",");
+                let parts = values.trim().split(',');
                 let mut result: Vec<NodeInfoType> = Vec::with_capacity(values.len());
                 for info_type in parts {
                     result.push(NodeInfoType::try_from(info_type)?);

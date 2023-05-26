@@ -30,10 +30,10 @@ impl Command {
         match &self {
             Command::Get(subcommand) => {
                 return match subcommand {
-                    GetCommands::Node(args) => NodeCommand.run(out, &args, config),
+                    GetCommands::Node(args) => NodeCommand.run(out, args, config),
                 };
             }
-            Command::View(args) => StatsCommand.run(out, &args, config),
+            Command::View(args) => StatsCommand.run(out, args, config),
         }
     }
 }

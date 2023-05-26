@@ -10,16 +10,14 @@ pub(crate) const DEFAULT_LABELS_COUNT: usize = 4;
 pub(crate) const DEFAULT_MAX_DATA_POINTS: Option<usize> = Some(60);
 
 pub(crate) fn create_float_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
-    let spans: Vec<Span> = label_values
+    label_values
         .iter()
         .map(|value| Span::raw(format!("{:.2}", *value)))
-        .collect();
-
-    return spans;
+        .collect()
 }
 
 pub(crate) fn create_timestamp_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
-    let spans: Vec<Span> = label_values
+    label_values
         .iter()
         .map(|value| {
             Span::raw(
@@ -30,27 +28,21 @@ pub(crate) fn create_timestamp_label_spans<'a>(label_values: Vec<f64>) -> Vec<Sp
                     .to_string(),
             )
         })
-        .collect();
-
-    return spans;
+        .collect()
 }
 
 pub(crate) fn create_binary_size_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
-    let spans: Vec<Span> = label_values
+    label_values
         .iter()
         .map(|value| Span::raw(format_size_i(*value, DECIMAL)))
-        .collect();
-
-    return spans;
+        .collect()
 }
 
 pub(crate) fn create_percentage_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
-    let spans: Vec<Span> = label_values
+    label_values
         .iter()
         .map(|value| Span::raw(format!("{:.2}%", *value)))
-        .collect();
-
-    return spans;
+        .collect()
 }
 
 pub trait ChartDataPoint {
@@ -145,7 +137,7 @@ where
         }
 
         values.push(self.x_axis_bounds[1]);
-        return values;
+        values
     }
 
     pub fn y_axis_labels_values(&self, count: usize) -> Vec<f64> {
@@ -161,7 +153,7 @@ where
         }
 
         values.push(self.y_axis_bounds[1]);
-        return values;
+        values
     }
 
     pub fn reset(&mut self) {

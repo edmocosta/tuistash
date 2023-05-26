@@ -48,20 +48,18 @@ impl<'a> Client<'a> {
         skip_tls_verification: bool,
     ) -> Result<Self, AnyError> {
         let base_url = format!("{}:{}", host, port);
-        let agent: Agent;
-
-        if skip_tls_verification {
+        let agent: Agent = if skip_tls_verification {
             let tls_config = rustls::ClientConfig::builder()
                 .with_safe_defaults()
                 .with_custom_certificate_verifier(SkipServerVerification::new())
                 .with_no_client_auth();
 
-            agent = ureq::AgentBuilder::new()
+            ureq::AgentBuilder::new()
                 .tls_config(Arc::new(tls_config))
-                .build();
+                .build()
         } else {
-            agent = ureq::AgentBuilder::new().build()
-        }
+            ureq::AgentBuilder::new().build()
+        };
 
         Ok(Self {
             client: agent,
@@ -84,7 +82,7 @@ impl<'a> Client<'a> {
 
         if let Some(pairs) = query {
             for pair in pairs {
-                request = request.query(&(*pair).0, &(*pair).1);
+                request = request.query(pair.0, pair.1);
             }
         }
 
@@ -93,6 +91,6 @@ impl<'a> Client<'a> {
         }
 
         let result = request.call()?;
-        return Ok(result);
+        Ok(result)
     }
 }

@@ -25,9 +25,9 @@ pub(crate) fn render_plugins_flow_chart<B>(
     let mut output_throughput_data: Vec<(f64, f64)> = vec![];
 
     for data_point in &state.data_points {
-        input_throughput_data.push((data_point.timestamp as f64, data_point.input as f64));
-        filter_throughput_data.push((data_point.timestamp as f64, data_point.filter as f64));
-        output_throughput_data.push((data_point.timestamp as f64, data_point.output as f64));
+        input_throughput_data.push((data_point.timestamp as f64, data_point.input));
+        filter_throughput_data.push((data_point.timestamp as f64, data_point.filter));
+        output_throughput_data.push((data_point.timestamp as f64, data_point.output));
     }
 
     let (input_throughput, filter_throughput, output_throughput) = state
@@ -101,7 +101,7 @@ fn create_flow_chart<'a>(
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(state.x_axis_bounds().clone())
+                .bounds(*state.x_axis_bounds())
                 .labels(create_timestamp_label_spans(
                     state.x_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
@@ -109,7 +109,7 @@ fn create_flow_chart<'a>(
         .y_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(state.y_axis_bounds().clone())
+                .bounds(*state.y_axis_bounds())
                 .labels(create_float_label_spans(
                     state.y_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
