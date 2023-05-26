@@ -9,9 +9,7 @@ use crate::api;
 use crate::api::node::{GraphDefinition, NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
 use crate::api::Client;
-use crate::commands::view::charts::{
-    ChartDataPoint, TimestampChartState, DEFAULT_MAX_DATA_POINTS,
-};
+use crate::commands::view::charts::{ChartDataPoint, TimestampChartState, DEFAULT_MAX_DATA_POINTS};
 use crate::commands::view::graph::PipelineGraph;
 use crate::commands::view::pipeline_view;
 use crate::commands::view::widgets::{StatefulTable, TabsState};
@@ -389,7 +387,7 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn on_esc(&mut self){
+    pub fn on_esc(&mut self) {
         self.should_quit = true;
     }
 

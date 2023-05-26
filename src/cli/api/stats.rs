@@ -128,30 +128,20 @@ mod infinity_f64_value {
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
 
-    pub fn serialize<S>(
-        value: &f64,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    pub fn serialize<S>(value: &f64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
     {
         return serializer.serialize_f64(*value);
     }
 
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<f64, D::Error>
-        where
-            D: Deserializer<'de>,
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<f64, D::Error>
+    where
+        D: Deserializer<'de>,
     {
-
         return match f64::deserialize(deserializer) {
-            Ok(v) => {
-                Ok(v)
-            }
-            Err(_) => {
-                Ok(f64::INFINITY)
-            }
+            Ok(v) => Ok(v),
+            Err(_) => Ok(f64::INFINITY),
         };
     }
 }
@@ -160,37 +150,27 @@ mod optional_infinity_f64_value {
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
 
-    pub fn serialize<S>(
-        value: &Option<f64>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    pub fn serialize<S>(value: &Option<f64>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
     {
         return if let Some(v) = value {
             serializer.serialize_f64(*v)
         } else {
             serializer.serialize_none()
-        }
+        };
     }
 
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<Option<f64>, D::Error>
-        where
-            D: Deserializer<'de>,
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         return match f64::deserialize(deserializer) {
-            Ok(v) => {
-               Ok(Some(v))
-            }
-            Err(_) => {
-                Ok(Some(f64::INFINITY))
-            }
+            Ok(v) => Ok(Some(v)),
+            Err(_) => Ok(Some(f64::INFINITY)),
         };
     }
 }
-
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -205,10 +185,10 @@ pub struct PipelineStats {
 }
 
 mod vertices {
-    use std::collections::HashMap;
+    use super::NodeStatsVertex;
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
-    use super::NodeStatsVertex;
+    use std::collections::HashMap;
 
     pub fn serialize<S>(
         map: &HashMap<String, NodeStatsVertex>,
@@ -279,10 +259,10 @@ impl Plugins {
 }
 
 mod plugins {
-    use std::collections::HashMap;
+    use crate::api::stats::Plugin;
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
-    use crate::api::stats::Plugin;
+    use std::collections::HashMap;
 
     pub fn serialize<S>(map: &HashMap<String, Plugin>, serializer: S) -> Result<S::Ok, S::Error>
     where

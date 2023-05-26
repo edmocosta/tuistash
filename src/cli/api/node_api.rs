@@ -1,8 +1,8 @@
-use serde_json::Value;
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
 use crate::api::Client;
 use crate::errors::AnyError;
+use serde_json::Value;
 
 impl Client<'_> {
     pub const QUERY_NODE_INFO_GRAPH: &'static [(&'static str, &'static str)] = &[("graph", "true")];

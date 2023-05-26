@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use clap::Args;
 
-use crate::commands::view::backend::run;
 use crate::commands::traits::RunnableCommand;
+use crate::commands::view::backend::run;
 use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;

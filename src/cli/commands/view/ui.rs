@@ -36,13 +36,23 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let tab_titles = vec![
         Spans::from(vec![
-            Span::styled("P", Style::default().fg(Color::Green).add_modifier(Modifier::UNDERLINED)),
-            Span::styled("ipelines", Style::default().fg(Color::Green))
+            Span::styled(
+                "P",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::UNDERLINED),
+            ),
+            Span::styled("ipelines", Style::default().fg(Color::Green)),
         ]),
         Spans::from(vec![
-            Span::styled("N", Style::default().fg(Color::Green).add_modifier(Modifier::UNDERLINED)),
-            Span::styled("ode", Style::default().fg(Color::Green))
-        ])
+            Span::styled(
+                "N",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::UNDERLINED),
+            ),
+            Span::styled("ode", Style::default().fg(Color::Green)),
+        ]),
     ];
 
     let tabs = Tabs::new(tab_titles)

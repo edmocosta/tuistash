@@ -1,15 +1,15 @@
 use clap::Subcommand;
 
 use crate::commands::node::command::{NodeArgs, NodeCommand};
-use crate::commands::view::command::{ViewArgs, StatsCommand};
 use crate::commands::traits::RunnableCommand;
+use crate::commands::view::command::{StatsCommand, ViewArgs};
 use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
 
 mod node;
-mod view;
 pub mod traits;
+mod view;
 
 #[derive(Subcommand)]
 pub enum Command {
