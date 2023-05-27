@@ -1,3 +1,4 @@
+use std::vec;
 use tui::layout::Alignment;
 use tui::text::Text;
 use tui::widgets::{Cell, Paragraph, Row, Table, Wrap};
@@ -16,20 +17,37 @@ use crate::commands::view::node_charts::render_node_charts;
 use crate::commands::view::pipeline_view;
 
 pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    let constraints = if app.show_help {
+        vec![
+            Constraint::Length(3),
+            Constraint::Min(0),
+            Constraint::Length(3),
+        ]
+    } else {
+        vec![Constraint::Length(3), Constraint::Min(0)]
+    };
+
     let chunks = Layout::default()
-        .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+        .constraints(constraints)
         .direction(Direction::Vertical)
         .split(f.size());
 
-    let main_block = Block::default()
+    let header_block = Block::default()
         .borders(Borders::ALL)
         .title("Logstash")
         .title(app.title);
 
-    f.render_widget(main_block, chunks[0]);
+    f.render_widget(header_block, chunks[0]);
 
     let title_chunks = Layout::default()
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(20),
+                Constraint::Percentage(10),
+                Constraint::Percentage(60),
+            ]
+            .as_ref(),
+        )
         .direction(Direction::Horizontal)
         .margin(1)
         .split(chunks[0]);
@@ -66,35 +84,92 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_widget(tabs, title_chunks[0]);
 
+    // Help text
+    let help_text = vec![Spans::from(vec![
+        Span::styled("Press", Style::default().fg(Color::DarkGray)),
+        Span::styled(" <H> ", Style::default().fg(Color::Gray)),
+        Span::styled("for help", Style::default().fg(Color::DarkGray)),
+    ])];
+
+    let w = Paragraph::new(help_text)
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(w, title_chunks[1]);
+
+    // Connection status
     let conn_status_span: Span = if app.connected {
         Span::styled("Connected", Style::default().fg(Color::Green))
     } else {
         Span::styled("Disconnected", Style::default().fg(Color::Red))
     };
 
-    if let Some(node_info) = &app.state.node_info {
-        let status_text = vec![Spans::from(vec![
-            conn_status_span,
-            Span::styled(" @ ", Style::default().fg(Color::Gray)),
-            Span::from(node_info.node.http_address.to_string()),
-            Span::styled(
-                format!(" | Sampling every {}ms", app.refresh_interval.as_millis()),
-                Style::default().fg(Color::Gray),
-            ),
-        ])];
+    let status_text = vec![Spans::from(vec![
+        conn_status_span,
+        Span::styled(" @ ", Style::default().fg(Color::Gray)),
+        Span::from(app.host),
+        Span::styled(
+            format!(" | Sampling every {}ms", app.refresh_interval.as_millis()),
+            Style::default().fg(Color::Gray),
+        ),
+    ])];
 
-        let w = Paragraph::new(status_text)
-            .alignment(Alignment::Right)
-            .wrap(Wrap { trim: true });
+    let w = Paragraph::new(status_text)
+        .alignment(Alignment::Right)
+        .wrap(Wrap { trim: true });
 
-        f.render_widget(w, title_chunks[1]);
+    f.render_widget(w, title_chunks[2]);
+
+    if app.connected {
+        match app.tabs.index {
+            0 => draw_pipelines_tab(f, app, chunks[1]),
+            1 => draw_node_tab(f, app, chunks[1]),
+            _ => {}
+        };
     }
 
-    match app.tabs.index {
-        0 => draw_pipelines_tab(f, app, chunks[1]),
-        1 => draw_node_tab(f, app, chunks[1]),
-        _ => {}
-    };
+    if app.show_help {
+        draw_help_panel(f, chunks[2]);
+    }
+}
+
+fn draw_help_panel<B>(f: &mut Frame<B>, area: Rect)
+where
+    B: Backend,
+{
+    let footer_block = Block::default().borders(Borders::ALL).title("Help");
+    f.render_widget(footer_block, area);
+
+    let footer_chunks = Layout::default()
+        .constraints([Constraint::Percentage(100)])
+        .direction(Direction::Horizontal)
+        .margin(1)
+        .split(area);
+
+    let w = Paragraph::new(vec![Spans::from(vec![
+        Span::styled("Shortcuts: ", Style::default().fg(Color::Gray)),
+        Span::styled("<P> <N> ", Style::default().fg(Color::Yellow)),
+        Span::styled("switch views", Style::default().fg(Color::Gray)),
+        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            "<Up> <Down> <Left> <Right> ",
+            Style::default().fg(Color::Yellow),
+        ),
+        Span::styled("navigate", Style::default().fg(Color::Gray)),
+        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
+        Span::styled("<F> ", Style::default().fg(Color::Yellow)),
+        Span::styled("show pipeline flow", Style::default().fg(Color::Gray)),
+        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
+        Span::styled("<Enter> ", Style::default().fg(Color::Yellow)),
+        Span::styled("show component details", Style::default().fg(Color::Gray)),
+        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
+        Span::styled("<Esc> <Q> ", Style::default().fg(Color::Yellow)),
+        Span::styled("exit", Style::default().fg(Color::Gray)),
+    ])])
+    .alignment(Alignment::Left)
+    .wrap(Wrap { trim: true });
+
+    f.render_widget(w, footer_chunks[0]);
 }
 
 fn draw_node_tab<B>(f: &mut Frame<B>, app: &mut App, area: Rect)

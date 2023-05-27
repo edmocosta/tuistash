@@ -1,3 +1,4 @@
+use humansize::{format_size_i, DECIMAL};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::vec;
@@ -24,7 +25,7 @@ where
     let render_pipeline_charts =
         app.show_selected_pipeline_charts && app.pipelines.selected_item().is_some();
     let render_vertex_charts =
-        app.show_selected_plugin_charts && app.selected_pipeline_graph.selected_item().is_some();
+        app.show_selected_vertex_details && app.selected_pipeline_vertex.selected_item().is_some();
 
     let constraints = if render_pipeline_charts || render_vertex_charts {
         vec![Constraint::Percentage(70), Constraint::Percentage(30)]
@@ -67,8 +68,8 @@ where
             .column_spacing(2)
             .highlight_style(selected_style)
             .widths(&[
-                Constraint::Percentage(50), // Name
-                Constraint::Percentage(7),  // Kind
+                Constraint::Percentage(49), // Name
+                Constraint::Percentage(8),  // Kind
                 Constraint::Percentage(11), // In
                 Constraint::Percentage(11), // Out
                 Constraint::Percentage(21), // Duration
@@ -77,7 +78,7 @@ where
         f.render_stateful_widget(
             vertices_table,
             chunks[0],
-            &mut app.selected_pipeline_graph.state,
+            &mut app.selected_pipeline_vertex.state,
         );
 
         if render_pipeline_charts {
@@ -419,7 +420,7 @@ where
             .chart_flow_pipeline_queue_backpressure
             .get(&selected_pipeline.name)
         {
-            render_flow_chart(f, "Queue Backpressure", flow, pipeline_flow_chunks[1]);
+            render_flow_chart(f, "Queue Backpressure", None, flow, pipeline_flow_chunks[1]);
         }
     }
 }
@@ -436,17 +437,11 @@ fn render_selected_vertex_details<B>(
 
     f.render_widget(main_block, area);
 
-    if pipeline_graph.is_none() || app.selected_pipeline_graph.selected_item().is_none() {
+    if pipeline_graph.is_none() || app.selected_pipeline_vertex.selected_item().is_none() {
         return;
     }
 
-    let chunks = Layout::default()
-        .constraints([Constraint::Min(5), Constraint::Percentage(90)])
-        .margin(1)
-        .direction(Direction::Vertical)
-        .split(area);
-
-    let vertex_id = app.selected_pipeline_graph.selected_item().unwrap();
+    let vertex_id = app.selected_pipeline_vertex.selected_item().unwrap();
     let vertex = pipeline_graph
         .as_ref()
         .unwrap()
@@ -457,31 +452,157 @@ fn render_selected_vertex_details<B>(
     }
 
     let vertex = vertex.unwrap();
-    let mut status_text = vec![
+    let details_text_constraint = if vertex.value.meta.is_some() {
+        Constraint::Length(3)
+    } else {
+        Constraint::Length(2)
+    };
+
+    let chunks = Layout::default()
+        .constraints([details_text_constraint, Constraint::Percentage(96)])
+        .margin(1)
+        .direction(Direction::Vertical)
+        .split(area);
+
+    let vertex_custom_id: &str = if vertex.value.explicit_id {
+        &vertex.value.id
+    } else {
+        "-"
+    };
+
+    let vertex_name = if vertex.value.r#type.as_str() != "plugin" {
+        &vertex.value.r#type
+    } else {
+        &vertex.value.config_name
+    };
+
+    let mut details_text = vec![
         Spans::from(vec![
             Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
-            Span::from(vertex.value.id.to_string()),
+            Span::from(vertex_custom_id),
         ]),
         Spans::from(vec![
             Span::styled("Name: ", Style::default().fg(Color::DarkGray)),
-            Span::from(vertex.value.config_name.to_string()),
+            Span::raw(vertex_name),
         ]),
     ];
 
     if let Some(meta) = &vertex.value.meta {
-        status_text.push(Spans::from(vec![
+        details_text.push(Spans::from(vec![
             Span::styled("Source: ", Style::default().fg(Color::DarkGray)),
-            Span::from(format!("{}:{}", meta.source.line, meta.source.column)),
+            Span::from(format!(
+                "{} - position {}:{}",
+                meta.source.id, meta.source.line, meta.source.column
+            )),
         ]))
     }
 
-    let w = Paragraph::new(status_text)
+    let w = Paragraph::new(details_text)
         .alignment(Alignment::Left)
         .wrap(Wrap { trim: true });
 
     f.render_widget(w, chunks[0]);
 
     // Charts
+    match vertex.value.r#type.as_str() {
+        "plugin" => render_selected_plugin_vertex_details(f, app, chunks[1]),
+        "queue" => render_queue_vertex_details(f, app, chunks[1]),
+        _ => {}
+    }
+}
+
+fn render_queue_vertex_details<B>(f: &mut Frame<B>, app: &App, area: Rect)
+where
+    B: Backend,
+{
+    if app.state.node_stats.is_none() || app.pipelines.selected_item().is_none() {
+        return;
+    }
+
+    let selected_pipeline = app.pipelines.selected_item().unwrap();
+    let node_stats = app.state.node_stats.as_ref().unwrap();
+
+    let chunks = Layout::default()
+        .constraints(vec![Constraint::Length(3), Constraint::Percentage(97)])
+        .direction(Direction::Vertical)
+        .split(area);
+
+    let pipeline_stats = node_stats.pipelines.get(&selected_pipeline.name);
+    if pipeline_stats.is_none() {
+        return;
+    }
+
+    let pipeline_stats = pipeline_stats.unwrap();
+    let queue_details = vec![
+        Spans::from(vec![
+            Span::styled("Capacity: ", Style::default().fg(Color::DarkGray)),
+            Span::from(format!(
+                "Size: {}, Max: {}",
+                format_size_i(pipeline_stats.queue.capacity.queue_size_in_bytes, DECIMAL),
+                format_size_i(
+                    pipeline_stats.queue.capacity.max_queue_size_in_bytes,
+                    DECIMAL,
+                )
+            )),
+        ]),
+        Spans::from(vec![
+            Span::styled("Free space: ", Style::default().fg(Color::DarkGray)),
+            Span::from(format_size_i(
+                pipeline_stats.queue.data.free_space_in_bytes,
+                DECIMAL,
+            )),
+        ]),
+        Spans::from(vec![
+            Span::styled("Events: ", Style::default().fg(Color::DarkGray)),
+            Span::from(pipeline_stats.queue.events.format_number_with_decimals(2)),
+        ]),
+    ];
+
+    let w = Paragraph::new(queue_details)
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(w, chunks[0]);
+
+    // Charts
+    let chart_chunks = Layout::default()
+        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .direction(Direction::Vertical)
+        .split(chunks[1]);
+
+    if let Some(persisted_growth_bytes) = app
+        .state
+        .chart_flow_pipeline_queue_persisted_growth_bytes
+        .get(&selected_pipeline.name)
+    {
+        render_flow_chart(
+            f,
+            "Bytes Growth",
+            Some("bytes"),
+            persisted_growth_bytes,
+            chart_chunks[0],
+        );
+    }
+
+    if let Some(persisted_growth_events) = app
+        .state
+        .chart_flow_pipeline_queue_persisted_growth_events
+        .get(&selected_pipeline.name)
+    {
+        render_flow_chart(
+            f,
+            "Events Growth",
+            Some("events"),
+            persisted_growth_events,
+            chart_chunks[1],
+        );
+    }
+}
+
+fn render_selected_plugin_vertex_details<B>(f: &mut Frame<B>, app: &App, area: Rect)
+where
+    B: Backend,
+{
     let throughput_state = &app.state.chart_pipeline_vertex_id_state.throughput;
     let worker_utilization_state = &app.state.chart_pipeline_vertex_id_state.worker_utilization;
 
@@ -495,10 +616,16 @@ fn render_selected_vertex_details<B>(
     let chart_chunks = Layout::default()
         .constraints(constraints)
         .direction(Direction::Vertical)
-        .split(chunks[1]);
+        .split(area);
 
     if let Some(throughput) = throughput_state {
-        render_flow_chart(f, "Throughput", throughput, chart_chunks[next_chunk_index]);
+        render_flow_chart(
+            f,
+            "Throughput",
+            Some("e/s"),
+            throughput,
+            chart_chunks[next_chunk_index],
+        );
         next_chunk_index += 1;
     }
 
@@ -506,6 +633,7 @@ fn render_selected_vertex_details<B>(
         render_flow_chart(
             f,
             "Worker Utilization",
+            None,
             worker_utilization_state,
             chart_chunks[next_chunk_index],
         );

@@ -15,14 +15,7 @@ fn run() -> Result<ExitCode, AnyError> {
     let cli = cli::build_cli();
     let username = cli.username.as_deref();
     let password = cli.password.as_deref();
-    let api = api::Client::new(
-        &cli.host,
-        &cli.port,
-        username,
-        password,
-        cli.skip_tls_verification,
-    )
-    .unwrap();
+    let api = api::Client::new(&cli.host, username, password, cli.skip_tls_verification).unwrap();
     let config = Config { api: &api };
 
     let stdout = std::io::stdout();

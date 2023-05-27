@@ -13,6 +13,7 @@ pub struct NodeArgs {
     #[arg()]
     pub types: Option<String>,
 
+    /// Valid values are 'default', 'json', 'table', 'raw'
     #[arg(short)]
     pub output: Option<String>,
 }

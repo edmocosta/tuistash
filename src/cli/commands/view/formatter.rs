@@ -32,16 +32,20 @@ impl DurationFormatter for u64 {
 }
 
 pub trait NumberFormatter {
-    fn format_number(&self) -> String;
+    fn format_number(&self) -> String {
+        self.format_number_with_decimals(3)
+    }
+
+    fn format_number_with_decimals(&self, decimals: usize) -> String;
 }
 
 impl NumberFormatter for i64 {
-    fn format_number(&self) -> String {
+    fn format_number_with_decimals(&self, decimals: usize) -> String {
         match self {
             0 => "0".into(),
             _ => human_format::Formatter::new()
-                .with_decimals(3)
-                .format(*self as f64), //self.to_formatted_string(&Locale::en),
+                .with_decimals(decimals)
+                .format(*self as f64),
         }
     }
 }

@@ -43,6 +43,7 @@ where
     render_flow_chart(
         f,
         "Queue Backpressure",
+        None,
         &app.state.chart_flow_queue_backpressure,
         flow_chart_chunks[2],
     );

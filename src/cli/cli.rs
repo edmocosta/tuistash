@@ -10,11 +10,8 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 
-    #[arg(long, default_value = "http://localhost", global = true)]
+    #[arg(long, default_value = "http://localhost:9600", global = true)]
     pub host: String,
-
-    #[arg(long, default_value_t = 9600, global = true)]
-    pub port: u16,
 
     #[arg(long, global = true)]
     pub username: Option<String>,

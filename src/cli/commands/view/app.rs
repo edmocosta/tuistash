@@ -250,19 +250,25 @@ pub(crate) struct AppState {
         HashMap<String, TimestampChartState<PluginFlowMetricDataPoint>>,
     pub chart_flow_pipeline_queue_backpressure:
         HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
+    pub chart_flow_pipeline_queue_persisted_growth_bytes:
+        HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
+    pub chart_flow_pipeline_queue_persisted_growth_events:
+        HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
 }
 
 pub(crate) struct App<'a> {
     pub title: &'a str,
     pub should_quit: bool,
     pub connected: bool,
+    pub show_help: bool,
     pub tabs: TabsState,
     pub pipelines: StatefulTable<PipelineItem>,
-    pub selected_pipeline_graph: StatefulTable<String>,
+    pub selected_pipeline_vertex: StatefulTable<String>,
     pub state: AppState,
     pub show_selected_pipeline_charts: bool,
-    pub show_selected_plugin_charts: bool,
+    pub show_selected_vertex_details: bool,
     pub focused: usize,
+    pub host: &'a str,
     pub refresh_interval: Duration,
     data_fetcher: DataFetcher<'a>,
 }
@@ -279,23 +285,27 @@ impl<'a> App<'a> {
             chart_process_cpu: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
             chart_flow_plugins_throughput: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
             chart_flow_queue_backpressure: TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
-            chart_flow_pipeline_plugins_throughput: Default::default(),
-            chart_flow_pipeline_queue_backpressure: Default::default(),
+            chart_flow_pipeline_queue_persisted_growth_bytes: HashMap::new(),
+            chart_flow_pipeline_queue_persisted_growth_events: HashMap::new(),
+            chart_flow_pipeline_plugins_throughput: HashMap::new(),
+            chart_flow_pipeline_queue_backpressure: HashMap::new(),
         };
 
         App {
             title,
             refresh_interval,
             show_selected_pipeline_charts: false,
-            show_selected_plugin_charts: false,
+            show_selected_vertex_details: false,
+            show_help: false,
             should_quit: false,
             connected: false,
             tabs: TabsState::new(),
             pipelines: StatefulTable::new(),
-            selected_pipeline_graph: StatefulTable::new(),
+            selected_pipeline_vertex: StatefulTable::new(),
             data_fetcher: DataFetcher::new(api),
             state: app_state,
             focused: 0,
+            host: api.base_url(),
         }
     }
 
@@ -304,20 +314,20 @@ impl<'a> App<'a> {
 
     pub fn on_up(&mut self) {
         if self.focused == Self::PIPELINE_LIST {
-            self.selected_pipeline_graph
+            self.selected_pipeline_vertex
                 .update(&self.state, self.pipelines.previous());
         } else {
-            self.selected_pipeline_graph.previous();
+            self.selected_pipeline_vertex.previous();
             self.update_selected_vertex_details();
         }
     }
 
     pub fn on_down(&mut self) {
         if self.focused == Self::PIPELINE_LIST {
-            self.selected_pipeline_graph
+            self.selected_pipeline_vertex
                 .update(&self.state, self.pipelines.next());
         } else {
-            self.selected_pipeline_graph.next();
+            self.selected_pipeline_vertex.next();
             self.update_selected_vertex_details();
         }
     }
@@ -325,7 +335,7 @@ impl<'a> App<'a> {
     pub fn on_right(&mut self) {
         if self.focused == Self::PIPELINE_LIST {
             self.focused = Self::PIPELINE_VIEWER_LIST;
-            self.selected_pipeline_graph.next();
+            self.selected_pipeline_vertex.next();
             self.update_selected_vertex_details();
         }
     }
@@ -333,8 +343,8 @@ impl<'a> App<'a> {
     pub fn on_left(&mut self) {
         if self.focused == Self::PIPELINE_VIEWER_LIST {
             self.focused = Self::PIPELINE_LIST;
-            self.selected_pipeline_graph.unselect();
-            self.show_selected_plugin_charts = false;
+            self.selected_pipeline_vertex.unselect();
+            self.show_selected_vertex_details = false;
             self.update_selected_vertex_details();
         }
     }
@@ -342,18 +352,18 @@ impl<'a> App<'a> {
     pub fn on_enter(&mut self) {
         if self.focused == Self::PIPELINE_VIEWER_LIST {
             self.show_selected_pipeline_charts = false;
-            self.show_selected_plugin_charts = !self.show_selected_plugin_charts;
+            self.show_selected_vertex_details = !self.show_selected_vertex_details;
             self.update_selected_vertex_details();
         }
     }
 
     fn update_selected_vertex_details(&mut self) {
-        if !self.show_selected_plugin_charts && self.state.chart_pipeline_vertex_id.is_some() {
+        if !self.show_selected_vertex_details && self.state.chart_pipeline_vertex_id.is_some() {
             self.state.chart_pipeline_vertex_id = None;
             self.state.chart_pipeline_vertex_id_state.reset();
-        } else if self.show_selected_plugin_charts {
+        } else if self.show_selected_vertex_details {
             let selected_vertex = self
-                .selected_pipeline_graph
+                .selected_pipeline_vertex
                 .selected_item()
                 .map(|p| p.to_string());
 
@@ -366,19 +376,23 @@ impl<'a> App<'a> {
     }
 
     pub fn on_key(&mut self, c: char) {
-        match c {
-            'q' => {
+        match c.to_lowercase().to_string().as_str() {
+            "q" => {
                 self.on_esc();
             }
-            'f' => {
+            "h" => {
+                self.show_help = !self.show_help;
+            }
+            "f" => {
                 if self.pipelines.selected_item().is_some() {
+                    self.show_selected_vertex_details = false;
                     self.show_selected_pipeline_charts = !self.show_selected_pipeline_charts;
                 }
             }
-            'p' => {
+            "p" => {
                 self.tabs.select(Self::PIPELINE_LIST);
             }
-            'n' => {
+            "n" => {
                 self.tabs.select(Self::PIPELINE_VIEWER_LIST);
             }
             _ => {}
@@ -413,21 +427,7 @@ impl<'a> App<'a> {
         };
 
         if let Some(node_stats) = self.state.node_stats.clone() {
-            self.state.chart_jvm_heap_state.push(JvmMemHeapDataPoint {
-                timestamp: Local::now().timestamp_millis(),
-                heap_committed_in_bytes: node_stats.jvm.mem.heap_committed_in_bytes,
-                heap_max_in_bytes: node_stats.jvm.mem.heap_max_in_bytes,
-                heap_used_in_bytes: node_stats.jvm.mem.heap_used_in_bytes,
-                heap_used_percent: node_stats.jvm.mem.heap_used_percent,
-            });
-
-            self.state
-                .chart_jvm_non_heap_state
-                .push(JvmMemNonHeapDataPoint {
-                    timestamp: Local::now().timestamp_millis(),
-                    non_heap_committed_in_bytes: node_stats.jvm.mem.non_heap_committed_in_bytes,
-                    non_heap_used_in_bytes: node_stats.jvm.mem.non_heap_used_in_bytes,
-                });
+            self.update_jvm_charts_states(&node_stats);
 
             self.state.chart_process_cpu.push(ProcessCpuDataPoint {
                 timestamp: Local::now().timestamp_millis(),
@@ -450,42 +450,80 @@ impl<'a> App<'a> {
                     value: node_stats.flow.queue_backpressure.current,
                 });
 
-            for (name, stats) in &node_stats.pipelines {
-                if !self
-                    .state
-                    .chart_flow_pipeline_plugins_throughput
-                    .contains_key(name)
-                {
-                    self.state.chart_flow_pipeline_plugins_throughput.insert(
-                        name.to_string(),
-                        TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
-                    );
-                }
-
-                self.state
-                    .chart_flow_pipeline_plugins_throughput
-                    .get_mut(name)
-                    .unwrap()
-                    .push(PluginFlowMetricDataPoint {
-                        timestamp: Local::now().timestamp_millis(),
-                        input: stats.flow.input_throughput.current,
-                        filter: stats.flow.filter_throughput.current,
-                        output: stats.flow.output_throughput.current,
-                    });
-
-                Self::add_to_pipeline_flow_state(
-                    name,
-                    stats.flow.queue_backpressure.current,
-                    &mut self.state.chart_flow_pipeline_queue_backpressure,
-                );
-            }
-
+            self.update_pipeline_vertices_charts_states(&node_stats);
             self.update_current_vertex_id_sampling();
         }
 
         self.pipelines.update(&self.state);
-        self.selected_pipeline_graph
-            .update(&self.state, self.pipelines.selected_item());
+
+        let selected_pipeline_item = if !self.pipelines.items.is_empty() {
+            self.pipelines.next()
+        } else {
+            self.pipelines.selected_item()
+        };
+
+        self.selected_pipeline_vertex
+            .update(&self.state, selected_pipeline_item);
+    }
+
+    pub fn update_jvm_charts_states(&mut self, node_stats: &NodeStats) {
+        self.state.chart_jvm_heap_state.push(JvmMemHeapDataPoint {
+            timestamp: Local::now().timestamp_millis(),
+            heap_committed_in_bytes: node_stats.jvm.mem.heap_committed_in_bytes,
+            heap_max_in_bytes: node_stats.jvm.mem.heap_max_in_bytes,
+            heap_used_in_bytes: node_stats.jvm.mem.heap_used_in_bytes,
+            heap_used_percent: node_stats.jvm.mem.heap_used_percent,
+        });
+
+        self.state
+            .chart_jvm_non_heap_state
+            .push(JvmMemNonHeapDataPoint {
+                timestamp: Local::now().timestamp_millis(),
+                non_heap_committed_in_bytes: node_stats.jvm.mem.non_heap_committed_in_bytes,
+                non_heap_used_in_bytes: node_stats.jvm.mem.non_heap_used_in_bytes,
+            });
+    }
+
+    pub fn update_pipeline_vertices_charts_states(&mut self, node_stats: &NodeStats) {
+        for (name, stats) in &node_stats.pipelines {
+            Self::add_to_pipeline_flow_state(
+                name,
+                &mut self.state.chart_flow_pipeline_plugins_throughput,
+                PluginFlowMetricDataPoint {
+                    timestamp: Local::now().timestamp_millis(),
+                    input: stats.flow.input_throughput.current,
+                    filter: stats.flow.filter_throughput.current,
+                    output: stats.flow.output_throughput.current,
+                },
+            );
+
+            Self::add_to_pipeline_flow_state(
+                name,
+                &mut self.state.chart_flow_pipeline_queue_backpressure,
+                FlowMetricDataPoint {
+                    timestamp: Local::now().timestamp_millis(),
+                    value: stats.flow.queue_backpressure.current,
+                },
+            );
+
+            Self::add_to_pipeline_flow_state(
+                name,
+                &mut self.state.chart_flow_pipeline_queue_persisted_growth_bytes,
+                FlowMetricDataPoint {
+                    timestamp: Local::now().timestamp_millis(),
+                    value: stats.flow.queue_persisted_growth_bytes.current,
+                },
+            );
+
+            Self::add_to_pipeline_flow_state(
+                name,
+                &mut self.state.chart_flow_pipeline_queue_persisted_growth_events,
+                FlowMetricDataPoint {
+                    timestamp: Local::now().timestamp_millis(),
+                    value: stats.flow.queue_persisted_growth_events.current,
+                },
+            );
+        }
     }
 
     fn update_current_vertex_id_sampling(&mut self) {
@@ -565,24 +603,20 @@ impl<'a> App<'a> {
         }
     }
 
-    fn add_to_pipeline_flow_state(
-        name: &str,
-        value: f64,
-        chart_state: &mut HashMap<String, TimestampChartState<FlowMetricDataPoint>>,
-    ) {
-        if !chart_state.contains_key(name) {
+    fn add_to_pipeline_flow_state<T>(
+        pipeline_name: &str,
+        chart_state: &mut HashMap<String, TimestampChartState<T>>,
+        value: T,
+    ) where
+        T: ChartDataPoint,
+    {
+        if !chart_state.contains_key(pipeline_name) {
             chart_state.insert(
-                name.to_string(),
+                pipeline_name.to_string(),
                 TimestampChartState::new(DEFAULT_MAX_DATA_POINTS),
             );
         }
 
-        chart_state
-            .get_mut(name)
-            .unwrap()
-            .push(FlowMetricDataPoint {
-                timestamp: Local::now().timestamp_millis(),
-                value,
-            });
+        chart_state.get_mut(pipeline_name).unwrap().push(value);
     }
 }

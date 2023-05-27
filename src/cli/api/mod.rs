@@ -42,12 +42,10 @@ impl ClientConfig<'_> {
 impl<'a> Client<'a> {
     pub fn new(
         host: &'a str,
-        port: &'a u16,
         username: Option<&'a str>,
         password: Option<&'a str>,
         skip_tls_verification: bool,
     ) -> Result<Self, AnyError> {
-        let base_url = format!("{}:{}", host, port);
         let agent: Agent = if skip_tls_verification {
             let tls_config = rustls::ClientConfig::builder()
                 .with_safe_defaults()
@@ -64,7 +62,7 @@ impl<'a> Client<'a> {
         Ok(Self {
             client: agent,
             config: ClientConfig {
-                base_url,
+                base_url: host.to_string(),
                 username,
                 password,
             },
@@ -92,5 +90,9 @@ impl<'a> Client<'a> {
 
         let result = request.call()?;
         Ok(result)
+    }
+
+    pub fn base_url(&self) -> &str {
+        &self.config.base_url
     }
 }

@@ -38,19 +38,19 @@ pub(crate) fn render_plugins_flow_chart<B>(
 
     let datasets = vec![
         Dataset::default()
-            .name(format!("Input: {:.3}", input_throughput))
+            .name(format!("Input: {:.3} e/s", input_throughput))
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Blue))
             .data(&input_throughput_data),
         Dataset::default()
-            .name(format!("Filter: {:.3}", filter_throughput))
+            .name(format!("Filter: {:.3} e/s", filter_throughput))
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Yellow))
             .data(&filter_throughput_data),
         Dataset::default()
-            .name(format!("Output: {:.3}", output_throughput))
+            .name(format!("Output: {:.3} e/s", output_throughput))
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Magenta))
@@ -63,6 +63,7 @@ pub(crate) fn render_plugins_flow_chart<B>(
 pub(crate) fn render_flow_chart<B>(
     f: &mut Frame<B>,
     title: &str,
+    label_suffix: Option<&str>,
     state: &TimestampChartState<FlowMetricDataPoint>,
     area: Rect,
 ) where
@@ -77,7 +78,11 @@ pub(crate) fn render_flow_chart<B>(
     let current_throughput = state.data_points.front().map(|p| p.value).unwrap_or(0.0);
 
     let datasets = vec![Dataset::default()
-        .name(format!("Current: {:.3}", current_throughput))
+        .name(format!(
+            "Current: {:.3} {}",
+            current_throughput,
+            label_suffix.unwrap_or("")
+        ))
         .marker(symbols::Marker::Braille)
         .graph_type(GraphType::Line)
         .style(Style::default().fg(Color::Blue))
