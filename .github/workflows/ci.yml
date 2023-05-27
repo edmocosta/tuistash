@@ -34,22 +34,23 @@ jobs:
         with:
           command: check
 
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    needs: prepare
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - run: sudo apt-get install -y -qq libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
+# Commented for now (no tests implemented yet)
+#  test:
+#    name: Test Suite
+#    runs-on: ubuntu-latest
+#    needs: prepare
+#    steps:
+#      - uses: actions/checkout@master
+#      - uses: actions-rs/toolchain@v1
+#        with:
+#          toolchain: stable
+#          profile: minimal
+#          override: true
+#      - run: sudo apt-get install -y -qq libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+#      - uses: Swatinem/rust-cache@v1
+#      - uses: actions-rs/cargo@v1
+#        with:
+#          command: test
 
   fmt:
     name: Rustfmt
