@@ -43,8 +43,8 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints(
             [
                 Constraint::Length(20),
-                Constraint::Percentage(10),
-                Constraint::Percentage(60),
+                Constraint::Percentage(20),
+                Constraint::Percentage(50),
             ]
             .as_ref(),
         )
