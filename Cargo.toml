@@ -1,5 +1,12 @@
 [package]
 name = "tuistash"
+description = "A terminal user interface for Logstash"
+homepage = "https://github.com/edmocosta/tuistash"
+repository = "https://github.com/edmocosta/tuistash"
+documentation = "https://github.com/edmocosta/tuistash"
+keywords = ["logstash", "tui", "cli", "terminal"]
+categories = ["command-line-utilities"]
+authors = ["Edmo Costa <edinhow@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
 

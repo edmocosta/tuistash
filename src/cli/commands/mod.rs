@@ -13,6 +13,7 @@ mod view;
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Get data from Logstash
     #[command(subcommand)]
     Get(GetCommands),
     /// Monitoring TUI
