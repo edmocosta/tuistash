@@ -456,11 +456,12 @@ impl<'a> App<'a> {
 
         self.pipelines.update(&self.state);
 
-        let selected_pipeline_item = if !self.pipelines.items.is_empty() {
-            self.pipelines.next()
-        } else {
-            self.pipelines.selected_item()
-        };
+        let selected_pipeline_item =
+            if self.pipelines.selected_item().is_none() && !self.pipelines.items.is_empty() {
+                self.pipelines.next()
+            } else {
+                self.pipelines.selected_item()
+            };
 
         self.selected_pipeline_vertex
             .update(&self.state, selected_pipeline_item);
