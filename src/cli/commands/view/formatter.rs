@@ -40,6 +40,11 @@ pub trait NumberFormatter {
 }
 
 impl NumberFormatter for i64 {
+    fn format_number(&self) -> String {
+        let decimals = if *self < 1000 { 0 } else { 3 };
+        self.format_number_with_decimals(decimals)
+    }
+
     fn format_number_with_decimals(&self, decimals: usize) -> String {
         match self {
             0 => "0".into(),
