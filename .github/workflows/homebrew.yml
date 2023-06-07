@@ -16,7 +16,7 @@ jobs:
           formula-name: tuistash
           formula-path: Formula/tuistash.rb
           homebrew-tap: edmocosta/homebrew-tap
-          base-branch: main
+          tag-name: ${{ github.event.inputs.tag-name }}
           download-url: https://github.com/edmocosta/tuistash/releases/download/${{ github.event.inputs.tag-name }}/tuistash-macos.tar.gz
           commit-message: |
             {{formulaName}} {{version}}
