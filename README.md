@@ -6,6 +6,16 @@ A terminal user interface for Logstash.
 
 ## Installation
 
+### Homebrew
+```shell
+brew tap edmocosta/homebrew-tap
+```
+
+```shell
+brew install tuistash
+```
+
+### Manual
 Download the latest release from the [github releases page](https://github.com/edmocosta/tuistash/releases).
 
 ## Usage
