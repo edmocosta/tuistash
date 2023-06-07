@@ -151,20 +151,21 @@ fn create_plugin_row<'a>(
     ];
 
     if let Some(stats) = pipeline_stats {
-        let events = stats.vertices.get(vertex.id.as_str()).unwrap();
-        let events_count = if vertex.plugin_type == "input" {
-            events.events_out
-        } else {
-            events.events_in
-        };
+        if let Some(events) = stats.vertices.get(vertex.id.as_str()) {
+            let events_count = if vertex.plugin_type == "input" {
+                events.events_out
+            } else {
+                events.events_in
+            };
 
-        cells.push(Cell::from(Text::from(events.events_in.format_number())));
-        cells.push(Cell::from(Text::from(events.events_out.format_number())));
-        cells.push(Cell::from(Text::from(
-            events
-                .duration_in_millis
-                .format_duration_per_event(events_count as u64),
-        )));
+            cells.push(Cell::from(Text::from(events.events_in.format_number())));
+            cells.push(Cell::from(Text::from(events.events_out.format_number())));
+            cells.push(Cell::from(Text::from(
+                events
+                    .duration_in_millis
+                    .format_duration_per_event(events_count as u64),
+            )));
+        }
     }
 
     Row::new(cells)
