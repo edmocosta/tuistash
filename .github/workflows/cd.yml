@@ -79,7 +79,7 @@ jobs:
           printf "::set-output name=%s::%s\n" tag-name "${GITHUB_REF#refs/tags/}"
       - name: Bump Homebrew formula
         uses: mislav/bump-homebrew-formula-action@v2
-        if: "!contains(github.ref, '-')" # skip prereleases
+        if: "matrix.os == 'macos-latest' && !contains(github.ref, '-')" # skip pre-releases
         with:
           formula-name: tuistash
           formula-path: Formula/tuistash.rb
