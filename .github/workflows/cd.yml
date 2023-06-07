@@ -78,21 +78,15 @@ jobs:
         run: |
           printf "::set-output name=%s::%s\n" tag-name "${GITHUB_REF#refs/tags/}"
       - name: Bump Homebrew formula
-        runs-on: ubuntu-latest
-        steps:
-          - name: Extract version
-            id: extract-version
-            run: |
-              printf "::set-output name=%s::%s\n" tag-name "${GITHUB_REF#refs/tags/}"
-          - uses: mislav/bump-homebrew-formula-action@v2
-            if: "!contains(github.ref, '-')" # skip prereleases
-            with:
-              formula-name: tuistash
-              formula-path: Formula/tuistash.rb
-              homebrew-tap: edmocosta/homebrew-tap
-              base-branch: main
-              download-url: https://github.com/edmocosta/tuistash/releases/download/${{ steps.extract-version.outputs.tag-name }}/tuistash-macos.tar.gz
-              commit-message: |
-                {{formulaName}} {{version}}
-            env:
-              COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+        uses: mislav/bump-homebrew-formula-action@v2
+        if: "!contains(github.ref, '-')" # skip prereleases
+        with:
+          formula-name: tuistash
+          formula-path: Formula/tuistash.rb
+          homebrew-tap: edmocosta/homebrew-tap
+          base-branch: main
+          download-url: https://github.com/edmocosta/tuistash/releases/download/${{ steps.extract-version.outputs.tag-name }}/tuistash-macos.tar.gz
+          commit-message: |
+            {{formulaName}} {{version}}
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
