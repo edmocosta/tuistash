@@ -18,6 +18,7 @@ jobs:
           homebrew-tap: edmocosta/homebrew-tap
           tag-name: ${{ github.event.inputs.tag-name }}
           download-url: https://github.com/edmocosta/tuistash/releases/download/${{ github.event.inputs.tag-name }}/tuistash-macos.tar.gz
+          download-sha256: https://github.com/edmocosta/tuistash/releases/download/${{ github.event.inputs.tag-name }}/tuistash-macos.sha256
           commit-message: |
             {{formulaName}} {{version}}
         env:
