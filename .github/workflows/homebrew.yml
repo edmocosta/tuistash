@@ -1,3 +1,4 @@
+name: Homebrew
 on:
   workflow_dispatch:
     inputs:
@@ -16,7 +17,7 @@ jobs:
           formula-path: Formula/tuistash.rb
           homebrew-tap: edmocosta/homebrew-tap
           base-branch: main
-          download-url: https://github.com/edmocosta/tuistash/releases/download/${{ steps.extract-version.outputs.tag-name }}/tuistash-macos.tar.gz
+          download-url: https://github.com/edmocosta/tuistash/releases/download/${{ github.event.inputs.tag-name }}/tuistash-macos.tar.gz
           commit-message: |
             {{formulaName}} {{version}}
         env:
