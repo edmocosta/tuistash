@@ -1,0 +1,23 @@
+on:
+  workflow_dispatch:
+    inputs:
+      tag-name:
+        description: 'The git tag name to bump the formula to'
+        required: true
+
+jobs:
+  homebrew:
+    name: Bump Homebrew formula
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mislav/bump-homebrew-formula-action@v2
+        with:
+          formula-name: tuistash
+          formula-path: Formula/tuistash.rb
+          homebrew-tap: edmocosta/homebrew-tap
+          base-branch: main
+          download-url: https://github.com/edmocosta/tuistash/releases/download/${{ steps.extract-version.outputs.tag-name }}/tuistash-macos.tar.gz
+          commit-message: |
+            {{formulaName}} {{version}}
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
