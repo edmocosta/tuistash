@@ -1,3 +1,6 @@
+use std::backtrace::Backtrace;
+use std::panic;
+
 use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
@@ -27,6 +30,8 @@ fn run() -> Result<ExitCode, AnyError> {
 }
 
 fn main() {
+    setup_panic_hook();
+
     let result = run();
     match result {
         Err(err) => {
@@ -37,4 +42,26 @@ fn main() {
             std::process::exit(exit_code);
         }
     }
+}
+
+fn setup_panic_hook() {
+    panic::set_hook(Box::new(move |panic_info| {
+        let backtrace = Backtrace::force_capture().to_string();
+        let loc = if let Some(location) = panic_info.location() {
+            format!(" in file {} at line {}", location.file(), location.line())
+        } else {
+            String::new()
+        };
+
+        let message = if let Some(value) = panic_info.payload().downcast_ref::<&str>() {
+            value
+        } else if let Some(value) = panic_info.payload().downcast_ref::<String>() {
+            value
+        } else {
+            "Payload not captured as it is not a string."
+        };
+
+        println!("Panic occurred{} with the message: {}", loc, message);
+        println!("Panic backtrace: \n{}", backtrace);
+    }));
 }

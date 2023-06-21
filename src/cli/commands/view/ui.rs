@@ -17,7 +17,7 @@ use crate::commands::view::node_charts::render_node_charts;
 use crate::commands::view::pipeline_view;
 
 pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let constraints = if app.show_help {
+    let constraints = if app.show_help || app.show_error.is_some() {
         vec![
             Constraint::Length(3),
             Constraint::Min(0),
@@ -109,7 +109,7 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         Span::styled(" @ ", Style::default().fg(Color::Gray)),
         Span::from(app.host),
         Span::styled(
-            format!(" | Sampling every {}ms", app.refresh_interval.as_millis()),
+            format!(" | Sampling every {}s", app.refresh_interval.as_secs()),
             Style::default().fg(Color::Gray),
         ),
     ])];
@@ -128,8 +128,34 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         };
     }
 
-    if app.show_help {
+    if app.show_error.is_some() {
+        draw_error_panel(f, app, chunks[2]);
+    } else if app.show_help {
         draw_help_panel(f, chunks[2]);
+    }
+}
+
+fn draw_error_panel<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+where
+    B: Backend,
+{
+    if let Some(error) = &app.show_error {
+        f.render_widget(Block::default().borders(Borders::ALL), area);
+
+        let footer_chunks = Layout::default()
+            .constraints([Constraint::Percentage(100)])
+            .direction(Direction::Horizontal)
+            .margin(1)
+            .split(area);
+
+        let w = Paragraph::new(vec![Spans::from(vec![
+            Span::styled("Error: ", Style::default().fg(Color::Red)),
+            Span::styled(error, Style::default().fg(Color::DarkGray)),
+        ])])
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true });
+
+        f.render_widget(w, footer_chunks[0]);
     }
 }
 
