@@ -280,6 +280,7 @@ pub(crate) struct App<'a> {
     pub should_quit: bool,
     pub connected: bool,
     pub show_help: bool,
+    pub show_error: Option<String>,
     pub tabs: TabsState,
     pub pipelines: StatefulTable<PipelineItem>,
     pub selected_pipeline_vertex: StatefulTable<String>,
@@ -319,6 +320,7 @@ impl<'a> App<'a> {
             show_selected_pipeline_charts: false,
             show_selected_vertex_details: false,
             show_help: false,
+            show_error: None,
             should_quit: false,
             connected: false,
             tabs: TabsState::new(),
@@ -433,13 +435,15 @@ impl<'a> App<'a> {
 
     pub fn on_tick(&mut self) {
         match self.data_fetcher.fetch_info() {
-            Ok(stats) => {
-                self.state.node_info = Some(stats);
+            Ok(info) => {
+                self.state.node_info = Some(info);
                 self.connected = true;
+                self.show_error = None;
             }
-            Err(_) => {
+            Err(err) => {
                 self.state.node_info = None;
                 self.connected = false;
+                self.show_error = Some(err.to_string());
             }
         };
 
@@ -447,10 +451,12 @@ impl<'a> App<'a> {
             Ok(stats) => {
                 self.state.node_stats = Some(stats);
                 self.connected = true;
+                self.show_error = None;
             }
-            Err(_) => {
+            Err(err) => {
                 self.state.node_stats = None;
                 self.connected = false;
+                self.show_error = Some(err.to_string());
             }
         };
 
