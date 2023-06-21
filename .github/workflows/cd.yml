@@ -86,7 +86,6 @@ jobs:
           homebrew-tap: edmocosta/homebrew-tap
           base-branch: main
           download-url: https://github.com/edmocosta/tuistash/releases/download/${{ steps.extract-version.outputs.tag-name }}/tuistash-macos.tar.gz
-          download-sha256: https://github.com/edmocosta/tuistash/releases/download/${{ steps.extract-version.outputs.tag-name }}/tuistash-macos.sha256
           commit-message: |
             {{formulaName}} {{version}}
         env:
