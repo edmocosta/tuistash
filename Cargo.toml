@@ -7,7 +7,7 @@ documentation = "https://github.com/edmocosta/tuistash"
 keywords = ["logstash", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
 authors = ["Edmo Costa <edinhow@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
