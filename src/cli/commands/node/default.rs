@@ -1,6 +1,5 @@
 use chrono::NaiveDateTime;
 use humansize::{format_size_i, DECIMAL};
-use owo_colors::OwoColorize;
 use tabled::builder::Builder;
 use tabled::{row, Style, Table};
 
@@ -22,18 +21,17 @@ impl ValueFormatter for DefaultFormatter {
 
 fn create_info_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
-
     builder.set_columns(vec![
-        "ID".bold().to_string(),
-        "NAME".bold().to_string(),
-        "HOST".bold().to_string(),
-        "VERSION".bold().to_string(),
-        "HTTP_ADDRESS".bold().to_string(),
-        "STATUS".bold().to_string(),
-        "WORKERS".bold().to_string(),
-        "BATCH_SIZE".bold().to_string(),
-        "BATCH_DELAY".bold().to_string(),
-        "EPHEMERAL_ID".bold().to_string(),
+        "ID".to_string(),
+        "NAME".to_string(),
+        "HOST".to_string(),
+        "VERSION".to_string(),
+        "HTTP_ADDRESS".to_string(),
+        "STATUS".to_string(),
+        "WORKERS".to_string(),
+        "BATCH_SIZE".to_string(),
+        "BATCH_DELAY".to_string(),
+        "EPHEMERAL_ID".to_string(),
     ]);
 
     let node = &node_info.node;
@@ -59,14 +57,14 @@ fn create_pipelines_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
 
     builder.set_columns(vec![
-        "NAME".bold().to_string(),
-        "WORKERS".bold().to_string(),
-        "BATCH_SIZE".bold().to_string(),
-        "BATCH_DELAY".bold().to_string(),
-        "CONFIG_RELOAD_AUTOMATIC".bold().to_string(),
-        "CONFIG_RELOAD_INTERVAL".bold().to_string(),
-        "DLQ_ENABLED".bold().to_string(),
-        "EPHEMERAL_ID".bold().to_string(),
+        "NAME".to_string(),
+        "WORKERS".to_string(),
+        "BATCH_SIZE".to_string(),
+        "BATCH_DELAY".to_string(),
+        "CONFIG_RELOAD_AUTOMATIC".to_string(),
+        "CONFIG_RELOAD_INTERVAL".to_string(),
+        "DLQ_ENABLED".to_string(),
+        "EPHEMERAL_ID".to_string(),
     ]);
 
     if node_info.pipelines.is_some() {
@@ -93,10 +91,10 @@ fn create_os_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
 
     builder.set_columns(vec![
-        "NAME".bold().to_string(),
-        "VERSION".bold().to_string(),
-        "ARCH".bold().to_string(),
-        "AVAILABLE_PROCESSORS".bold().to_string(),
+        "NAME".to_string(),
+        "VERSION".to_string(),
+        "ARCH".to_string(),
+        "AVAILABLE_PROCESSORS".to_string(),
     ]);
 
     if node_info.os.is_some() {
@@ -118,13 +116,13 @@ fn create_jvm_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
 
     builder.set_columns(vec![
-        "PID".bold().to_string(),
-        "VERSION".bold().to_string(),
-        "VM".bold().to_string(),
-        "START_TIME".bold().to_string(),
-        "HEAP_INIT_MAX".bold().to_string(),
-        "NON_HEAP_INIT_MAX".bold().to_string(),
-        "GC_COLLECTORS".bold().to_string(),
+        "PID".to_string(),
+        "VERSION".to_string(),
+        "VM".to_string(),
+        "START_TIME".to_string(),
+        "HEAP_INIT_MAX".to_string(),
+        "NON_HEAP_INIT_MAX".to_string(),
+        "GC_COLLECTORS".to_string(),
     ]);
 
     if node_info.jvm.is_some() {
@@ -184,9 +182,9 @@ fn new_default_table(node_info: &NodeInfo, types: Option<&[NodeInfoType]>) -> Ta
                         }
                         _ => {
                             add_section_separator(&mut builder, info_types, info_type);
-                            builder.add_record(vec!["Default format not supported for this type"
-                                .red()
-                                .to_string()]);
+                            builder.add_record(vec![
+                                "Default format not supported for this type".to_string()
+                            ]);
                         }
                     }
                 }
@@ -210,13 +208,7 @@ fn add_section_separator(
 }
 
 fn add_section_separator_record(builder: &mut Builder, current: &NodeInfoType) {
-    let mut section = row![current
-        .to_string()
-        .to_uppercase()
-        .blue()
-        .bold()
-        .underline()
-        .to_string()];
+    let mut section = row![current.to_string().to_uppercase()];
     section.with(Style::empty());
     builder.add_record(vec![section.to_string()]);
 }

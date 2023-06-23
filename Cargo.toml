@@ -7,7 +7,7 @@ documentation = "https://github.com/edmocosta/tuistash"
 keywords = ["logstash", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
 authors = ["Edmo Costa <edinhow@gmail.com>"]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [dependencies]
@@ -16,8 +16,7 @@ ureq = { version = "2.7.1", features = ["json", "tls"], default-features = false
 serde = { version = "1.0", features = ["derive"], default-features = false }
 serde_with = { version = "3.0.0", default-features = false }
 serde_json = { version = "1.0", default-features = false }
-tabled = { version = "0.10", features = ["color"], default-features = false }
-owo-colors = { version = "3.5.0", default-features = false }
+tabled = { version = "0.10.0", features = ["color"], default-features = false }
 json_to_table = { version = "*", default-features = false }
 base64 = { version = "0.21.0", features = ["std"], default-features = false }
 rustls = { version = "0.21.2", features = ["dangerous_configuration"], default-features = false }
@@ -30,7 +29,6 @@ crossterm = { version = "0.26.1", default-features = false, features = ["event-s
 num-format = { version = "0.4.4", default-features = false, features = ["with-num-bigint"] }
 human_format = { version = "1.0" }
 uuid = { version = "1.3.3", features = ["v4"] }
-
 
 [[bin]]
 name = "tuistash"
