@@ -8,7 +8,7 @@ use crate::commands;
 #[command(propagate_version = true)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 
     #[arg(long, default_value = "http://localhost:9600", global = true)]
     pub host: String,

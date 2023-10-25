@@ -1,4 +1,4 @@
-use tui::widgets::TableState;
+use ratatui::widgets::TableState;
 
 // Tabs
 pub struct TabsState {

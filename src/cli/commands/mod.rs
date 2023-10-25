@@ -2,11 +2,12 @@ use clap::Subcommand;
 
 use crate::commands::node::command::{NodeArgs, NodeCommand};
 use crate::commands::traits::RunnableCommand;
-use crate::commands::view::command::{StatsCommand, ViewArgs};
+use crate::commands::view::command::{ViewArgs, ViewCommand};
 use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
 
+mod formatter;
 mod node;
 pub mod traits;
 mod view;
@@ -27,6 +28,10 @@ pub enum GetCommands {
 }
 
 impl Command {
+    pub fn execute_default_command(out: &mut Output, config: &Config) -> Result<(), AnyError> {
+        ViewCommand.run(out, &ViewArgs::default(), config)
+    }
+
     pub fn execute(&self, out: &mut Output, config: &Config) -> Result<(), AnyError> {
         match &self {
             Command::Get(subcommand) => {
@@ -34,7 +39,7 @@ impl Command {
                     GetCommands::Node(args) => NodeCommand.run(out, args, config),
                 };
             }
-            Command::View(args) => StatsCommand.run(out, args, config),
+            Command::View(args) => ViewCommand.run(out, args, config),
         }
     }
 }

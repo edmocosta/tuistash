@@ -1,44 +1,44 @@
-use std::collections::VecDeque;
-
-use chrono::{Local, TimeZone};
 use humansize::ToF64;
 use humansize::{format_size_i, DECIMAL};
-use tui::text::Span;
+use ratatui::text::Span;
+use std::collections::VecDeque;
+use time::{format_description, OffsetDateTime, UtcOffset};
 
 pub(crate) const DEFAULT_LABELS_COUNT: usize = 4;
 
-pub(crate) const DEFAULT_MAX_DATA_POINTS: Option<usize> = Some(60);
+pub(crate) const DEFAULT_MAX_DATA_POINTS: Option<usize> = Some(120);
 
-pub(crate) fn create_float_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
+pub(crate) fn create_chart_float_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
     label_values
         .iter()
         .map(|value| Span::raw(format!("{:.2}", *value)))
         .collect()
 }
 
-pub(crate) fn create_timestamp_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
+pub(crate) fn create_chart_timestamp_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
+    let format = format_description::parse("[hour]:[minute]:[second]").unwrap();
     label_values
         .iter()
         .map(|value| {
             Span::raw(
-                Local
-                    .timestamp_millis_opt(*value as i64)
+                OffsetDateTime::from_unix_timestamp(*value as i64)
                     .unwrap()
-                    .format("%H:%M:%S")
-                    .to_string(),
+                    .to_offset(UtcOffset::current_local_offset().unwrap())
+                    .format(&format)
+                    .unwrap(),
             )
         })
         .collect()
 }
 
-pub(crate) fn create_binary_size_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
+pub(crate) fn create_chart_binary_size_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
     label_values
         .iter()
         .map(|value| Span::raw(format_size_i(*value, DECIMAL)))
         .collect()
 }
 
-pub(crate) fn create_percentage_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
+pub(crate) fn create_chart_percentage_label_spans<'a>(label_values: Vec<f64>) -> Vec<Span<'a>> {
     label_values
         .iter()
         .map(|value| Span::raw(format!("{:.2}%", *value)))

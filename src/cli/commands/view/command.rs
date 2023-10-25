@@ -8,16 +8,16 @@ use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
 
-#[derive(Args)]
+#[derive(Args, Default)]
 pub struct ViewArgs {
     /// Refresh interval in seconds
     #[arg(default_value = "1", short = 'i', long)]
     pub interval: u64,
 }
 
-pub struct StatsCommand;
+pub struct ViewCommand;
 
-impl RunnableCommand<ViewArgs> for StatsCommand {
+impl RunnableCommand<ViewArgs> for ViewCommand {
     fn run(&self, _: &mut Output, args: &ViewArgs, config: &Config) -> Result<(), AnyError> {
         let tick_rate = Duration::from_secs(args.interval);
         if let Err(e) = run(tick_rate, config) {

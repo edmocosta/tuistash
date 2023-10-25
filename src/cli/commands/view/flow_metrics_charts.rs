@@ -1,18 +1,18 @@
-use humansize::ToF64;
-use tui::backend::Backend;
-use tui::layout::{Constraint, Rect};
-use tui::style::{Color, Style};
-use tui::text::Span;
-use tui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType};
-use tui::{symbols, Frame};
+use ratatui::backend::Backend;
+use ratatui::layout::{Constraint, Rect};
+use ratatui::style::{Color, Style};
+use ratatui::text::Span;
+use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType};
+use ratatui::{symbols, Frame};
 
 use crate::commands::view::app::{FlowMetricDataPoint, PluginFlowMetricDataPoint};
 use crate::commands::view::charts::TimestampChartState;
 use crate::commands::view::charts::{
-    create_float_label_spans, create_timestamp_label_spans, ChartDataPoint, DEFAULT_LABELS_COUNT,
+    create_chart_float_label_spans, create_chart_timestamp_label_spans, ChartDataPoint,
+    DEFAULT_LABELS_COUNT,
 };
 
-pub(crate) fn render_plugins_flow_chart<B>(
+pub(crate) fn draw_plugin_throughput_flow_chart<B>(
     f: &mut Frame<B>,
     title: &str,
     state: &TimestampChartState<PluginFlowMetricDataPoint>,
@@ -57,10 +57,10 @@ pub(crate) fn render_plugins_flow_chart<B>(
             .data(&output_throughput_data),
     ];
 
-    f.render_widget(create_flow_chart(title, datasets, state), area);
+    f.render_widget(create_flow_metric_chart(title, datasets, state), area);
 }
 
-pub(crate) fn render_flow_chart<B>(
+pub(crate) fn draw_flow_metric_chart<B>(
     f: &mut Frame<B>,
     title: &str,
     label_suffix: Option<&str>,
@@ -69,29 +69,29 @@ pub(crate) fn render_flow_chart<B>(
 ) where
     B: Backend,
 {
-    let throughput_data: Vec<(f64, f64)> = state
+    let metric_data: Vec<(f64, f64)> = state
         .data_points
         .iter()
-        .map(|p| (p.timestamp.to_f64(), p.value.to_f64()))
+        .map(|p| (p.timestamp as f64, p.value))
         .collect();
 
-    let current_throughput = state.data_points.front().map(|p| p.value).unwrap_or(0.0);
+    let current_value = state.data_points.front().map(|p| p.value).unwrap_or(0.0);
 
     let datasets = vec![Dataset::default()
         .name(format!(
             "Current: {:.3} {}",
-            current_throughput,
+            current_value,
             label_suffix.unwrap_or("")
         ))
         .marker(symbols::Marker::Braille)
         .graph_type(GraphType::Line)
         .style(Style::default().fg(Color::Blue))
-        .data(&throughput_data)];
+        .data(&metric_data)];
 
-    f.render_widget(create_flow_chart(title, datasets, state), area);
+    f.render_widget(create_flow_metric_chart(title, datasets, state), area);
 }
 
-fn create_flow_chart<'a>(
+fn create_flow_metric_chart<'a>(
     title: &'a str,
     datasets: Vec<Dataset<'a>>,
     state: &TimestampChartState<impl ChartDataPoint>,
@@ -107,7 +107,7 @@ fn create_flow_chart<'a>(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
                 .bounds(*state.x_axis_bounds())
-                .labels(create_timestamp_label_spans(
+                .labels(create_chart_timestamp_label_spans(
                     state.x_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
         )
@@ -115,7 +115,7 @@ fn create_flow_chart<'a>(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
                 .bounds(*state.y_axis_bounds())
-                .labels(create_float_label_spans(
+                .labels(create_chart_float_label_spans(
                     state.y_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
         )

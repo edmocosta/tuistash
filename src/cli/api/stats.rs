@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
 use serde::Serialize;
+use serde::{Deserialize, Deserializer};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -175,13 +175,25 @@ mod optional_infinity_f64_value {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PipelineStats {
+    #[serde(deserialize_with = "deserialize_null_default")]
     pub events: Events,
+    #[serde(deserialize_with = "deserialize_null_default")]
     pub flow: PipelineFlow,
     pub plugins: Plugins,
     pub reloads: Reloads,
+    #[serde(deserialize_with = "deserialize_null_default")]
     pub queue: Queue,
     #[serde(with = "vertices")]
     pub vertices: HashMap<String, NodeStatsVertex>,
+}
+
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }
 
 mod vertices {
@@ -296,6 +308,7 @@ pub struct Plugin {
 pub struct PluginFlow {
     pub throughput: Option<FlowMetricValue>,
     pub worker_utilization: Option<FlowMetricValue>,
+    pub worker_millis_per_event: Option<FlowMetricValue>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

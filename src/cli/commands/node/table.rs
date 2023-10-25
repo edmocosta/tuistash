@@ -1,6 +1,5 @@
 use json_to_table::json_to_table;
 use serde_json::Value;
-use tabled::Style;
 
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::commands::node::json::remove_unlisted_fields;
@@ -29,8 +28,6 @@ impl ValueFormatter for TableFormatter {
             Some(values) => remove_unlisted_fields(content, values)?,
         };
 
-        Ok(json_to_table(&formatted_content)
-            .set_style(Style::modern())
-            .to_string())
+        Ok(json_to_table(&formatted_content).to_string())
     }
 }

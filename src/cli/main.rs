@@ -1,5 +1,6 @@
-use std::backtrace::Backtrace;
+use crate::commands::Command;
 use std::panic;
+use std::process::exit;
 
 use crate::config::Config;
 use crate::errors::AnyError;
@@ -25,7 +26,15 @@ fn run() -> Result<ExitCode, AnyError> {
     let mut stdout_lock = stdout.lock();
     let mut out = Output::new(&mut stdout_lock);
 
-    cli.command.execute(&mut out, &config)?;
+    match cli.command {
+        None => {
+            Command::execute_default_command(&mut out, &config)?;
+        }
+        Some(cmd) => {
+            cmd.execute(&mut out, &config)?;
+        }
+    }
+
     Ok(0)
 }
 
@@ -36,17 +45,19 @@ fn main() {
     match result {
         Err(err) => {
             println!("{}", err);
-            std::process::exit(1);
+            exit(1);
         }
         Ok(exit_code) => {
-            std::process::exit(exit_code);
+            exit(exit_code);
         }
     }
 }
 
 fn setup_panic_hook() {
     panic::set_hook(Box::new(move |panic_info| {
-        let backtrace = Backtrace::force_capture().to_string();
+        // Attempt to clear the terminal
+        print!("{}[2J", 27 as char);
+
         let loc = if let Some(location) = panic_info.location() {
             format!(" in file {} at line {}", location.file(), location.line())
         } else {
@@ -62,6 +73,7 @@ fn setup_panic_hook() {
         };
 
         println!("Panic occurred{} with the message: {}", loc, message);
-        println!("Panic backtrace: \n{}", backtrace);
+
+        exit(-1)
     }));
 }
