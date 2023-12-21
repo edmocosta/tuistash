@@ -13,8 +13,8 @@ use ratatui::{
     Terminal,
 };
 
-use crate::commands::view::app::App;
-use crate::commands::view::ui;
+use crate::commands::tui::app::App;
+use crate::commands::tui::ui;
 use crate::config::Config;
 use crate::errors::AnyError;
 
@@ -48,6 +48,7 @@ fn run_app<B: Backend>(
     interval: Duration,
 ) -> io::Result<()> {
     let mut last_tick = Instant::now();
+
     app.on_tick();
 
     loop {
@@ -61,13 +62,7 @@ fn run_app<B: Backend>(
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Esc => app.on_esc(),
-                    KeyCode::Char(c) => app.on_key(c),
-                    KeyCode::Enter => app.on_enter(),
-                    KeyCode::Left => app.on_left(),
-                    KeyCode::Up => app.on_up(),
-                    KeyCode::Right => app.on_right(),
-                    KeyCode::Down => app.on_down(),
-                    _ => {}
+                    _ => app.handle_key_event(key),
                 }
             }
         }

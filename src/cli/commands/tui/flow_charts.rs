@@ -1,25 +1,74 @@
-use ratatui::backend::Backend;
+use crate::commands::tui::charts::{
+    create_chart_float_label_spans, create_chart_timestamp_label_spans, ChartDataPoint,
+    TimestampChartState, DEFAULT_LABELS_COUNT,
+};
+use crate::commands::tui::now_local_unix_timestamp;
 use ratatui::layout::{Constraint, Rect};
-use ratatui::style::{Color, Style};
-use ratatui::text::Span;
+use ratatui::prelude::{Color, Span, Style};
 use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType};
 use ratatui::{symbols, Frame};
 
-use crate::commands::view::app::{FlowMetricDataPoint, PluginFlowMetricDataPoint};
-use crate::commands::view::charts::TimestampChartState;
-use crate::commands::view::charts::{
-    create_chart_float_label_spans, create_chart_timestamp_label_spans, ChartDataPoint,
-    DEFAULT_LABELS_COUNT,
-};
+pub struct PluginFlowMetricDataPoint {
+    pub timestamp: i64,
+    pub input: f64,
+    pub filter: f64,
+    pub output: f64,
+}
 
-pub(crate) fn draw_plugin_throughput_flow_chart<B>(
-    f: &mut Frame<B>,
+impl PluginFlowMetricDataPoint {
+    pub fn new(input: f64, filter: f64, output: f64) -> Self {
+        PluginFlowMetricDataPoint {
+            timestamp: now_local_unix_timestamp(),
+            input,
+            filter,
+            output,
+        }
+    }
+}
+
+impl ChartDataPoint for PluginFlowMetricDataPoint {
+    fn y_axis_bounds(&self) -> [f64; 2] {
+        [
+            f64::min(f64::min(self.input, self.filter), self.output),
+            f64::max(f64::max(self.input, self.filter), self.output),
+        ]
+    }
+
+    fn x_axis_bounds(&self) -> [f64; 2] {
+        [self.timestamp as f64, self.timestamp as f64]
+    }
+}
+
+pub struct FlowMetricDataPoint {
+    pub timestamp: i64,
+    pub value: f64,
+}
+
+impl FlowMetricDataPoint {
+    pub fn new(value: f64) -> Self {
+        FlowMetricDataPoint {
+            timestamp: now_local_unix_timestamp(),
+            value,
+        }
+    }
+}
+
+impl ChartDataPoint for FlowMetricDataPoint {
+    fn y_axis_bounds(&self) -> [f64; 2] {
+        [self.value, self.value]
+    }
+
+    fn x_axis_bounds(&self) -> [f64; 2] {
+        [self.timestamp as f64, self.timestamp as f64]
+    }
+}
+
+pub(crate) fn draw_plugin_throughput_flow_chart(
+    f: &mut Frame,
     title: &str,
     state: &TimestampChartState<PluginFlowMetricDataPoint>,
     area: Rect,
-) where
-    B: Backend,
-{
+) {
     let mut input_throughput_data: Vec<(f64, f64)> = vec![];
     let mut filter_throughput_data: Vec<(f64, f64)> = vec![];
     let mut output_throughput_data: Vec<(f64, f64)> = vec![];
@@ -60,15 +109,13 @@ pub(crate) fn draw_plugin_throughput_flow_chart<B>(
     f.render_widget(create_flow_metric_chart(title, datasets, state), area);
 }
 
-pub(crate) fn draw_flow_metric_chart<B>(
-    f: &mut Frame<B>,
+pub(crate) fn draw_flow_metric_chart(
+    f: &mut Frame,
     title: &str,
     label_suffix: Option<&str>,
     state: &TimestampChartState<FlowMetricDataPoint>,
     area: Rect,
-) where
-    B: Backend,
-{
+) {
     let metric_data: Vec<(f64, f64)> = state
         .data_points
         .iter()

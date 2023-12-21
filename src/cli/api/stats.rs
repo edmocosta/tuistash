@@ -253,6 +253,7 @@ pub struct Plugins {
 }
 
 impl Plugins {
+    #[allow(dead_code)]
     pub fn get(&self, name: &str) -> Option<&Plugin> {
         if let Some(plugin) = self.inputs.get(name) {
             return Some(plugin);
@@ -267,6 +268,30 @@ impl Plugins {
         }
 
         return self.codecs.get(name);
+    }
+
+    pub fn all(&self) -> HashMap<String, &Plugin> {
+        let mut map = HashMap::with_capacity(
+            self.inputs.len() + self.filters.len() + self.outputs.len() + self.codecs.len(),
+        );
+
+        for (name, plugin) in &self.inputs {
+            map.insert(name.to_string(), plugin);
+        }
+
+        for (name, plugin) in &self.codecs {
+            map.insert(name.to_string(), plugin);
+        }
+
+        for (name, plugin) in &self.filters {
+            map.insert(name.to_string(), plugin);
+        }
+
+        for (name, plugin) in &self.outputs {
+            map.insert(name.to_string(), plugin);
+        }
+
+        map
     }
 }
 

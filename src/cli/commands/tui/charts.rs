@@ -58,19 +58,44 @@ where
     pub max_data_points: Option<usize>,
     x_axis_bounds: [f64; 2],
     y_axis_bounds: [f64; 2],
+    min_x_value: Option<f64>,
+    min_y_value: Option<f64>,
+}
+
+impl<Y> Default for TimestampChartState<Y>
+where
+    Y: ChartDataPoint,
+{
+    fn default() -> Self {
+        TimestampChartState::new(DEFAULT_MAX_DATA_POINTS)
+    }
 }
 
 impl<Y> TimestampChartState<Y>
 where
     Y: ChartDataPoint,
 {
-    pub fn new(max_data_points: Option<usize>) -> Self {
+    pub fn with_min_bounds(
+        max_data_points: Option<usize>,
+        min_x_value: Option<f64>,
+        min_y_value: Option<f64>,
+    ) -> Self {
         TimestampChartState {
             data_points: VecDeque::new(),
             max_data_points,
             x_axis_bounds: [0.0, 0.0],
             y_axis_bounds: [0.0, 0.0],
+            min_x_value,
+            min_y_value,
         }
+    }
+
+    pub fn with_negative_bounds(max_data_points: Option<usize>) -> Self {
+        Self::with_min_bounds(max_data_points, Some(f64::MIN), Some(f64::MIN))
+    }
+
+    pub fn new(max_data_points: Option<usize>) -> Self {
+        Self::with_min_bounds(max_data_points, Some(0.0), Some(0.0))
     }
 
     fn update_bounds(bounds: &mut [f64; 2], value_bounds: [f64; 2]) {
@@ -88,11 +113,11 @@ where
         let value_x_bounds = value.x_axis_bounds();
 
         let inclusive_y_bounds = [
-            f64::max(0.0, value_y_bounds[0] - 1.0),
+            f64::max(self.min_y_value.unwrap_or(0.0), value_y_bounds[0] - 1.0),
             value_y_bounds[1] + 1.0,
         ];
         let inclusive_x_bounds = [
-            f64::max(0.0, value_x_bounds[0] - 1.0),
+            f64::max(self.min_x_value.unwrap_or(0.0), value_x_bounds[0] - 1.0),
             value_x_bounds[1] + 1.0,
         ];
 
@@ -125,14 +150,21 @@ where
     }
 
     pub fn x_axis_labels_values(&self, count: usize) -> Vec<f64> {
-        let mut values: Vec<f64> = Vec::with_capacity(count);
+        let mut values: Vec<f64> = Vec::with_capacity(count + 1);
 
         let pieces = f64::max(
-            1.0,
+            self.min_x_value.map(|p| p + 1.0).unwrap_or(1.0),
             (self.x_axis_bounds[1] - self.x_axis_bounds[0]) / count.to_f64(),
         );
+
+        let mut previous: Option<f64> = None;
         for i in 0..(count - 1) {
             let next = self.x_axis_bounds[0] + (pieces * i.to_f64());
+            if previous.is_some_and(|p| p.signum() != next.signum()) {
+                values.push(0.0);
+            }
+
+            previous = Some(next);
             values.push(next);
         }
 
@@ -141,14 +173,21 @@ where
     }
 
     pub fn y_axis_labels_values(&self, count: usize) -> Vec<f64> {
-        let mut values: Vec<f64> = Vec::with_capacity(count);
+        let mut values: Vec<f64> = Vec::with_capacity(count + 1);
 
         let pieces = f64::max(
-            1.0,
+            self.min_y_value.map(|p| p + 1.0).unwrap_or(1.0),
             (self.y_axis_bounds[1] - self.y_axis_bounds[0]) / count.to_f64(),
         );
+
+        let mut previous: Option<f64> = None;
         for i in 0..(count - 1) {
             let next = self.y_axis_bounds[0] + (pieces * i.to_f64());
+            if previous.is_some_and(|p| p.signum() != next.signum()) {
+                values.push(0.0);
+            }
+
+            previous = Some(next);
             values.push(next);
         }
 
@@ -160,5 +199,9 @@ where
         self.data_points.clear();
         self.x_axis_bounds = [0.0, 0.00];
         self.y_axis_bounds = [0.0, 0.00];
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data_points.is_empty()
     }
 }

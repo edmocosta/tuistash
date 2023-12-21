@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use std::vec;
 
 use humansize::{format_size_i, DECIMAL};
-use ratatui::backend::Backend;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
@@ -13,17 +12,14 @@ use ratatui::Frame;
 use crate::api::node::Vertex;
 use crate::api::stats::PipelineStats;
 use crate::commands::formatter::{DurationFormatter, NumberFormatter};
-use crate::commands::view::app::App;
-use crate::commands::view::app::{AppState, PipelineItem};
-use crate::commands::view::flow_metrics_charts::{
+use crate::commands::tui::app::{App, AppData};
+use crate::commands::tui::flow_charts::{
     draw_flow_metric_chart, draw_plugin_throughput_flow_chart,
 };
-use crate::commands::view::pipeline_graph::PipelineGraph;
+use crate::commands::tui::pipelines::graph::PipelineGraph;
+use crate::commands::tui::pipelines::state::PipelineTableItem;
 
-pub(crate) fn draw_pipelines_tab<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+pub(crate) fn draw_pipelines_tab(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .constraints([Constraint::Percentage(100)].as_ref())
         .split(area);
@@ -31,10 +27,7 @@ where
     draw_pipelines_widgets(f, app, chunks[0]);
 }
 
-fn draw_pipelines_widgets<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_pipelines_widgets(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .constraints(vec![Constraint::Percentage(18), Constraint::Percentage(82)])
         .direction(Direction::Horizontal)
@@ -45,18 +38,16 @@ where
     }
 }
 
-fn draw_pipelines_table<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
     let rows: Vec<Row> = app
-        .pipelines
+        .pipelines_state
+        .pipelines_table
         .items
         .iter()
         .map(|i| Row::new(vec![Cell::from(Text::from(i.name.to_string()))]))
         .collect();
 
-    let headers = vec!["Name"];
+    let headers = ["Name"];
     let header_style: Style = Style::default()
         .fg(Color::Gray)
         .add_modifier(Modifier::BOLD);
@@ -67,22 +58,25 @@ where
     let header_cells = headers.iter().map(|h| Cell::from(*h).style(header_style));
     let header = Row::new(header_cells).style(row_style).height(1);
 
-    let pipelines = Table::new(rows)
+    let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
+
+    let pipelines = Table::new(rows, widths)
         .header(header)
         .block(Block::default().borders(Borders::ALL).title("Pipelines"))
         .column_spacing(2)
         .highlight_style(selected_style)
-        .widths(&[
+        .widths([
             Constraint::Percentage(100), // Name
         ]);
 
-    f.render_stateful_widget(pipelines, area, &mut app.pipelines.state);
+    f.render_stateful_widget(
+        pipelines,
+        area,
+        &mut app.pipelines_state.pipelines_table.state,
+    );
 }
 
-fn draw_selected_pipeline_section<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_selected_pipeline_section(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .constraints(vec![Constraint::Length(3), Constraint::Percentage(82)])
         .direction(Direction::Vertical)
@@ -93,14 +87,15 @@ where
     }
 }
 
-fn draw_selected_pipeline_vertices<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
-    let draw_pipeline_charts =
-        app.show_selected_pipeline_charts && app.pipelines.selected_item().is_some();
-    let draw_vertex_charts =
-        app.show_selected_vertex_details && app.selected_pipeline_vertex.selected_item().is_some();
+fn draw_selected_pipeline_vertices(f: &mut Frame, app: &mut App, area: Rect) {
+    let draw_pipeline_charts = app.pipelines_state.show_selected_pipeline_charts
+        && app
+            .pipelines_state
+            .pipelines_table
+            .selected_item()
+            .is_some();
+    let draw_vertex_charts = app.pipelines_state.show_selected_vertex_details
+        && app.pipelines_state.selected_pipeline_vertex().is_some();
 
     let constraints = if draw_pipeline_charts || draw_vertex_charts {
         vec![Constraint::Percentage(70), Constraint::Percentage(30)]
@@ -116,19 +111,19 @@ where
         let rows: Vec<Row>;
         let pipeline_graph: Option<PipelineGraph>;
 
-        if let Some(selected_pipeline) = app.pipelines.selected_item() {
+        if let Some(selected_pipeline) = app.pipelines_state.pipelines_table.selected_item() {
             pipeline_graph = Some(PipelineGraph::from(&selected_pipeline.graph));
             rows = create_selected_pipeline_vertices_rows(
                 pipeline_graph.as_ref().unwrap(),
                 selected_pipeline,
-                &app.state,
+                &app.data,
             );
         } else {
             pipeline_graph = None;
             rows = vec![];
         }
 
-        let headers = vec!["Name", "Kind", "Events in", "Events out", "Duration (ms/e)"];
+        let headers = ["Name", "Kind", "Events in", "Events out", "Duration (ms/e)"];
         let header_style: Style = Style::default()
             .fg(Color::Gray)
             .add_modifier(Modifier::BOLD);
@@ -137,12 +132,13 @@ where
 
         let header_cells = headers.iter().map(|h| Cell::from(*h).style(header_style));
         let header = Row::new(header_cells).style(row_style).height(1);
-        let vertices_table = Table::new(rows)
+        let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
+        let vertices_table = Table::new(rows, widths)
             .header(header)
             .block(Block::default().borders(Borders::ALL).title("Pipeline"))
             .column_spacing(2)
             .highlight_style(selected_style)
-            .widths(&[
+            .widths([
                 Constraint::Percentage(49), // Name
                 Constraint::Percentage(8),  // Kind
                 Constraint::Percentage(11), // In
@@ -153,7 +149,7 @@ where
         f.render_stateful_widget(
             vertices_table,
             chunks[0],
-            &mut app.selected_pipeline_vertex.state,
+            &mut app.pipelines_state.selected_pipeline_vertex.state,
         );
 
         if draw_pipeline_charts {
@@ -164,56 +160,68 @@ where
     }
 }
 
-fn draw_selected_pipeline_flow_charts<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
-    let pipeline_flow_chunks = Layout::default()
-        .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
-        .direction(Direction::Vertical)
-        .split(area);
+fn draw_selected_pipeline_flow_charts(f: &mut Frame, app: &mut App, area: Rect) {
+    let selected_pipeline = app.pipelines_state.selected_pipeline_name();
+    if selected_pipeline.is_none() {
+        return;
+    }
 
-    if let Some(selected_pipeline) = app.pipelines.selected_item() {
-        if let Some(flow) = app
-            .state
-            .chart_flow_pipeline_plugins_throughput
-            .get(&selected_pipeline.name)
-        {
+    if let Some(selected_pipeline_state) = app
+        .shared_state
+        .pipeline_flows_chart_state(selected_pipeline.unwrap())
+        .map(|p| &p.pipeline)
+    {
+        let pipeline_flow_chunks = Layout::default()
+            .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
+            .direction(Direction::Vertical)
+            .split(area);
+
+        if !selected_pipeline_state.plugins_throughput.is_empty() {
             draw_plugin_throughput_flow_chart(
                 f,
                 "Pipeline Throughput",
-                flow,
+                &selected_pipeline_state.plugins_throughput,
                 pipeline_flow_chunks[0],
             );
         }
 
-        if let Some(flow) = app
-            .state
-            .chart_flow_pipeline_queue_backpressure
-            .get(&selected_pipeline.name)
-        {
-            draw_flow_metric_chart(f, "Queue Backpressure", None, flow, pipeline_flow_chunks[1]);
+        if !selected_pipeline_state.queue_backpressure.is_empty() {
+            draw_flow_metric_chart(
+                f,
+                "Queue Backpressure",
+                None,
+                &selected_pipeline_state.queue_backpressure,
+                pipeline_flow_chunks[1],
+            );
         }
     }
 }
 
-fn draw_selected_pipeline_vertex_details<B>(
-    f: &mut Frame<B>,
+fn draw_selected_pipeline_vertex_details(
+    f: &mut Frame,
     app: &App,
     pipeline_graph: Option<PipelineGraph>,
     area: Rect,
-) where
-    B: Backend,
-{
+) {
     let main_block = Block::default().borders(Borders::ALL).title("Details");
 
     f.render_widget(main_block, area);
 
-    if pipeline_graph.is_none() || app.selected_pipeline_vertex.selected_item().is_none() {
+    if pipeline_graph.is_none()
+        || app
+            .pipelines_state
+            .selected_pipeline_vertex
+            .selected_item()
+            .is_none()
+    {
         return;
     }
 
-    let vertex_id = app.selected_pipeline_vertex.selected_item().unwrap();
+    let vertex_id = app
+        .pipelines_state
+        .selected_pipeline_vertex
+        .selected_item()
+        .unwrap();
     let vertex = pipeline_graph
         .as_ref()
         .unwrap()
@@ -283,17 +291,14 @@ fn draw_selected_pipeline_vertex_details<B>(
     }
 }
 
-fn draw_selected_pipeline_events_block<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_selected_pipeline_events_block(f: &mut Frame, app: &mut App, area: Rect) {
     let events_block = Block::default()
         .title("Pipeline events")
         .borders(Borders::ALL);
 
     let events_text: Line;
-    if let Some(selected_pipeline) = &app.pipelines.selected_item() {
-        if let Some(node_stats) = &app.state.node_stats {
+    if let Some(selected_pipeline) = &app.pipelines_state.pipelines_table.selected_item() {
+        if let Some(node_stats) = &app.data.node_stats() {
             let selected_pipeline_stats =
                 node_stats.pipelines.get(&selected_pipeline.name).unwrap();
 
@@ -441,10 +446,10 @@ type GraphVisitorStack<'b> = RefCell<Vec<(&'b str, Option<i32>, i32, bool)>>;
 
 fn create_selected_pipeline_vertices_rows<'a>(
     graph: &'a PipelineGraph,
-    selected_pipeline: &PipelineItem,
-    state: &'a AppState,
+    selected_pipeline: &PipelineTableItem,
+    data: &'a AppData,
 ) -> Vec<Row<'a>> {
-    let selected_pipeline_stats: Option<&PipelineStats> = match &state.node_stats {
+    let selected_pipeline_stats: Option<&PipelineStats> = match &data.node_stats() {
         None => None,
         Some(stats) => stats.pipelines.get(selected_pipeline.name.as_str()),
     };
@@ -523,16 +528,19 @@ fn create_selected_pipeline_vertices_rows<'a>(
     table_rows
 }
 
-fn draw_selected_pipeline_queue_vertex_details<B>(f: &mut Frame<B>, app: &App, area: Rect)
-where
-    B: Backend,
-{
-    if app.state.node_stats.is_none() || app.pipelines.selected_item().is_none() {
+fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: Rect) {
+    if app.data.node_stats().is_none()
+        || app
+            .pipelines_state
+            .pipelines_table
+            .selected_item()
+            .is_none()
+    {
         return;
     }
 
-    let selected_pipeline = app.pipelines.selected_item().unwrap();
-    let node_stats = app.state.node_stats.as_ref().unwrap();
+    let selected_pipeline = app.pipelines_state.pipelines_table.selected_item().unwrap();
+    let node_stats = app.data.node_stats().unwrap();
 
     let chunks = Layout::default()
         .constraints(vec![Constraint::Length(3), Constraint::Percentage(97)])
@@ -582,49 +590,62 @@ where
         .direction(Direction::Vertical)
         .split(chunks[1]);
 
-    if let Some(persisted_growth_bytes) = app
-        .state
-        .chart_flow_pipeline_queue_persisted_growth_bytes
-        .get(&selected_pipeline.name)
+    if let Some(selected_pipeline_state) = app
+        .shared_state
+        .pipeline_flows_chart_state(&selected_pipeline.name)
+        .map(|p| &p.pipeline)
     {
-        draw_flow_metric_chart(
-            f,
-            "Bytes Growth",
-            Some("bytes"),
-            persisted_growth_bytes,
-            chart_chunks[0],
-        );
-    }
+        if !selected_pipeline_state
+            .queue_persisted_growth_bytes
+            .is_empty()
+        {
+            draw_flow_metric_chart(
+                f,
+                "Bytes Growth",
+                Some("bytes"),
+                &selected_pipeline_state.queue_persisted_growth_bytes,
+                chart_chunks[0],
+            );
+        }
 
-    if let Some(persisted_growth_events) = app
-        .state
-        .chart_flow_pipeline_queue_persisted_growth_events
-        .get(&selected_pipeline.name)
-    {
-        draw_flow_metric_chart(
-            f,
-            "Events Growth",
-            Some("events"),
-            persisted_growth_events,
-            chart_chunks[1],
-        );
+        if !selected_pipeline_state
+            .queue_persisted_growth_events
+            .is_empty()
+        {
+            draw_flow_metric_chart(
+                f,
+                "Events Growth",
+                Some("events"),
+                &selected_pipeline_state.queue_persisted_growth_events,
+                chart_chunks[1],
+            );
+        }
     }
 }
 
-fn draw_selected_pipeline_plugin_vertex_details<B>(
-    f: &mut Frame<B>,
+fn draw_selected_pipeline_plugin_vertex_details(
+    f: &mut Frame,
     app: &App,
     vertex: &Vertex,
     area: Rect,
-) where
-    B: Backend,
-{
-    let throughput_state = &app.state.chart_pipeline_vertex_id_state.throughput;
-    let worker_utilization_state = &app.state.chart_pipeline_vertex_id_state.worker_utilization;
-    let worker_millis_per_event_state = &app
-        .state
-        .chart_pipeline_vertex_id_state
-        .worker_millis_per_event;
+) {
+    let selected_pipeline = app.pipelines_state.selected_pipeline_name();
+    if selected_pipeline.is_none() {
+        return;
+    }
+
+    let selected_vertex = app.pipelines_state.selected_pipeline_vertex();
+    if selected_vertex.is_none() {
+        return;
+    }
+
+    let state = app
+        .shared_state
+        .pipeline_plugin_flows_chart_state(selected_pipeline.unwrap(), selected_vertex.unwrap());
+
+    let throughput_state = state.map(|p| &p.throughput);
+    let worker_utilization_state = state.map(|p| &p.worker_utilization);
+    let worker_millis_per_event_state = state.map(|p| &p.worker_millis_per_event);
 
     let is_input_plugin = vertex.plugin_type == "input";
     let constraints = if is_input_plugin {
@@ -640,27 +661,33 @@ fn draw_selected_pipeline_plugin_vertex_details<B>(
 
     if is_input_plugin {
         if let Some(throughput) = throughput_state {
-            draw_flow_metric_chart(f, "Throughput", Some("e/s"), throughput, chart_chunks[0]);
+            if !throughput.is_empty() {
+                draw_flow_metric_chart(f, "Throughput", Some("e/s"), throughput, chart_chunks[0]);
+            }
         }
     } else {
         if let Some(worker_utilization_state) = worker_utilization_state {
-            draw_flow_metric_chart(
-                f,
-                "Worker Utilization",
-                None,
-                worker_utilization_state,
-                chart_chunks[0],
-            );
+            if !worker_utilization_state.is_empty() {
+                draw_flow_metric_chart(
+                    f,
+                    "Worker Utilization",
+                    None,
+                    worker_utilization_state,
+                    chart_chunks[0],
+                );
+            }
         }
 
         if let Some(worker_millis_per_event_state) = worker_millis_per_event_state {
-            draw_flow_metric_chart(
-                f,
-                "Worker Millis Per Event",
-                None,
-                worker_millis_per_event_state,
-                chart_chunks[1],
-            );
+            if !worker_millis_per_event_state.is_empty() {
+                draw_flow_metric_chart(
+                    f,
+                    "Worker Millis Per Event",
+                    None,
+                    worker_millis_per_event_state,
+                    chart_chunks[1],
+                );
+            }
         }
     }
 }

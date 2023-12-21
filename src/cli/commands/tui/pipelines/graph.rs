@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use uuid::Uuid;
 
 use crate::api::node::{GraphDefinition, Vertex};
-use crate::commands::view::app::PipelineItem;
+use crate::commands::tui::pipelines::state::PipelineTableItem;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Stats {
@@ -212,7 +212,7 @@ impl<'a> PipelineGraph<'a> {
         }
     }
 
-    pub fn create_pipeline_vertex_ids(&self, selected_pipeline: &PipelineItem) -> Vec<String> {
+    pub fn create_pipeline_vertex_ids(&self, selected_pipeline: &PipelineTableItem) -> Vec<String> {
         let mut visited: RefCell<HashSet<&str>> = RefCell::new(HashSet::with_capacity(
             selected_pipeline.graph.vertices.len(),
         ));

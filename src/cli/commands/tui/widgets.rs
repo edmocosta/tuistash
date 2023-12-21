@@ -6,7 +6,11 @@ pub struct TabsState {
 }
 
 impl TabsState {
-    pub fn new() -> TabsState {
+    pub fn with_default_index(index: usize) -> Self {
+        TabsState { index }
+    }
+
+    pub fn new() -> Self {
         TabsState { index: 0 }
     }
 

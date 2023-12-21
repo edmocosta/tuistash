@@ -6,7 +6,7 @@ repository = "https://github.com/edmocosta/tuistash"
 documentation = "https://github.com/edmocosta/tuistash"
 keywords = ["logstash", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
-authors = ["Edmo Costa <edinhow@gmail.com>"]
+authors = ["Edmo Vamerlatti Costa <edinhow@gmail.com>"]
 version = "0.1.3"
 edition = "2021"
 
@@ -21,10 +21,10 @@ colored = { version = "2.0.4", default-features = false }
 json_to_table = { version = "0.5.0", default-features = false }
 base64 = { version = "0.21", features = ["std"], default-features = false }
 rustls = { version = "0.21", features = ["dangerous_configuration"], default-features = false }
-colored_json = { version = "3.2", default-features = false }
+colored_json = { version = "4.1", default-features = false }
 humansize = { version = "2.1", default-features = false }
 humantime = { version = "2.1" }
-ratatui = { version = "0.22.0", features = ["crossterm"] }
+ratatui = { version = "0.25.0", features = ["crossterm"] }
 crossterm = { version = "0.27.0", default-features = false, features = ["event-stream"] }
 num-format = { version = "0.4", default-features = false, features = ["with-num-bigint"] }
 human_format = { version = "1.0" }

@@ -4,12 +4,15 @@ mod app;
 mod backend;
 mod charts;
 pub mod command;
-mod flow_metrics_charts;
-mod pipeline_graph;
+mod data_fetcher;
+mod events;
+mod flow_charts;
+
+mod flows;
+mod node;
+mod pipelines;
+mod shared_state;
 mod ui;
-mod ui_flow_tab;
-mod ui_node_tab;
-mod ui_pipelines_tab;
 mod widgets;
 
 fn now_local_unix_timestamp() -> i64 {

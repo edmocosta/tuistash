@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 use crate::commands::node::command::{NodeArgs, NodeCommand};
 use crate::commands::traits::RunnableCommand;
-use crate::commands::view::command::{ViewArgs, ViewCommand};
+use crate::commands::tui::command::{TuiArgs, TuiCommand};
 use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
@@ -10,7 +10,7 @@ use crate::output::Output;
 mod formatter;
 mod node;
 pub mod traits;
-mod view;
+mod tui;
 
 #[derive(Subcommand)]
 pub enum Command {
@@ -18,7 +18,7 @@ pub enum Command {
     #[command(subcommand)]
     Get(GetCommands),
     /// Monitoring TUI
-    View(ViewArgs),
+    Tui(TuiArgs),
 }
 
 #[derive(Subcommand)]
@@ -29,17 +29,15 @@ pub enum GetCommands {
 
 impl Command {
     pub fn execute_default_command(out: &mut Output, config: &Config) -> Result<(), AnyError> {
-        ViewCommand.run(out, &ViewArgs::default(), config)
+        TuiCommand.run(out, &TuiArgs::default(), config)
     }
 
     pub fn execute(&self, out: &mut Output, config: &Config) -> Result<(), AnyError> {
         match &self {
-            Command::Get(subcommand) => {
-                return match subcommand {
-                    GetCommands::Node(args) => NodeCommand.run(out, args, config),
-                };
-            }
-            Command::View(args) => ViewCommand.run(out, args, config),
+            Command::Get(subcommand) => match subcommand {
+                GetCommands::Node(args) => NodeCommand.run(out, args, config),
+            },
+            Command::Tui(args) => TuiCommand.run(out, args, config),
         }
     }
 }

@@ -19,7 +19,7 @@ pub trait ValueFormatter {
         types: Option<&[NodeInfoType]>,
     ) -> Result<String, AnyError> {
         let node_info: NodeInfo = serde_json::from_value(content)?;
-        return Self::format(self, &node_info, types);
+        Self::format(self, &node_info, types)
     }
 }
 

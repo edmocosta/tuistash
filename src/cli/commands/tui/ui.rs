@@ -1,21 +1,22 @@
+use std::vec;
+
 use ratatui::layout::Alignment;
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::{
-    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Tabs},
     Frame,
 };
-use std::vec;
 
-use crate::commands::view::app::App;
-use crate::commands::view::ui_node_tab::draw_node_tab;
-use crate::commands::view::ui_pipelines_tab::draw_pipelines_tab;
+use crate::commands::tui::app::App;
+use crate::commands::tui::flows::ui::draw_flows_tab;
+use crate::commands::tui::node::ui::draw_node_tab;
+use crate::commands::tui::pipelines::ui::draw_pipelines_tab;
 
-pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let constraints = if app.show_help || app.show_error.is_some() {
+pub(crate) fn draw(f: &mut Frame, app: &mut App) {
+    let constraints = if app.show_help || app.data.last_error_message().is_some() {
         vec![
             Constraint::Length(3),
             Constraint::Min(0),
@@ -64,7 +65,7 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::UNDERLINED),
             ),
-            Span::styled("low", Style::default().fg(Color::Yellow)),
+            Span::styled("lows", Style::default().fg(Color::Yellow)),
         ]),
         Line::from(vec![
             Span::styled(
@@ -102,10 +103,10 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(w, title_chunks[1]);
 
     // Connection status
-    let conn_status_span: Span = if app.connected {
-        Span::styled("Connected", Style::default().fg(Color::Green))
-    } else {
+    let conn_status_span: Span = if app.data.errored() {
         Span::styled("Disconnected", Style::default().fg(Color::Red))
+    } else {
+        Span::styled("Connected", Style::default().fg(Color::Green))
     };
 
     let status_text = Line::from(vec![
@@ -124,27 +125,24 @@ pub(crate) fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_widget(w, title_chunks[2]);
 
-    if app.connected {
+    if !app.data.errored() {
         match app.tabs.index {
             App::TAB_PIPELINES => draw_pipelines_tab(f, app, chunks[1]),
             App::TAB_NODE => draw_node_tab(f, app, chunks[1]),
-            App::TAB_FLOW => {}
+            App::TAB_FLOWS => draw_flows_tab(f, app, chunks[1]),
             _ => {}
         };
     }
 
-    if app.show_error.is_some() {
+    if app.data.last_error_message().is_some() {
         draw_error_panel(f, app, chunks[2]);
     } else if app.show_help {
         draw_help_panel(f, chunks[2]);
     }
 }
 
-fn draw_error_panel<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
-    if let Some(error) = &app.show_error {
+fn draw_error_panel(f: &mut Frame, app: &mut App, area: Rect) {
+    if let Some(error) = &app.data.last_error_message() {
         f.render_widget(Block::default().borders(Borders::ALL), area);
 
         let footer_chunks = Layout::default()
@@ -164,10 +162,7 @@ where
     }
 }
 
-fn draw_help_panel<B>(f: &mut Frame<B>, area: Rect)
-where
-    B: Backend,
-{
+fn draw_help_panel(f: &mut Frame, area: Rect) {
     let footer_block = Block::default().borders(Borders::ALL).title("Help");
     f.render_widget(footer_block, area);
 

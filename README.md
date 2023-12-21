@@ -16,7 +16,7 @@ brew install tuistash
 ```
 
 ### Manual
-Download the latest release from the [github releases page](https://github.com/edmocosta/tuistash/releases).
+Download the latest release from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases).
 
 ## Usage
 
@@ -44,7 +44,7 @@ Options:
 ### Monitoring UI:
 
 ```shell
-./tuistash view
+./tuistash
 ```
 
 #### Shortcuts:
