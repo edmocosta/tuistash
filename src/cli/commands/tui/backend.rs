@@ -23,12 +23,17 @@ pub fn run(interval: Duration, config: &Config) -> Result<(), AnyError> {
 
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let app = App::new("Logstash", config.api, interval);
+    terminal.clear()?;
 
-    run_app(&mut terminal, app, interval)?;
+    run_app(
+        &mut terminal,
+        App::new("Logstash", config.api, interval),
+        interval,
+    )?;
 
     disable_raw_mode()?;
 
