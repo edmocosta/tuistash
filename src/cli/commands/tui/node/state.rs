@@ -100,15 +100,6 @@ impl NodeState {
         }
     }
 
-    pub(crate) fn update(&mut self, app_data: &AppData) {
-        if app_data.node_stats().is_none() {
-            self.reset();
-            return;
-        }
-
-        self.update_chart_states(app_data.node_stats().unwrap());
-    }
-
     fn update_chart_states(&mut self, node_stats: &NodeStats) {
         self.chart_process_cpu
             .push(ProcessCpuDataPoint::new(node_stats.process.cpu.percent));
@@ -126,14 +117,6 @@ impl NodeState {
             .push(FlowMetricDataPoint::new(
                 node_stats.flow.queue_backpressure.current,
             ));
-    }
-
-    pub(crate) fn reset(&mut self) {
-        self.chart_jvm_heap_state.reset();
-        self.chart_jvm_non_heap_state.reset();
-        self.chart_process_cpu.reset();
-        self.chart_flow_plugins_throughput.reset();
-        self.chart_flow_queue_backpressure.reset();
     }
 
     fn update_jvm_charts_states(&mut self, node_stats: &NodeStats) {
@@ -154,6 +137,23 @@ impl NodeState {
 }
 
 impl EventsListener for NodeState {
+    fn update(&mut self, app_data: &AppData) {
+        if app_data.node_stats().is_none() {
+            self.reset();
+            return;
+        }
+
+        self.update_chart_states(app_data.node_stats().unwrap());
+    }
+
+    fn reset(&mut self) {
+        self.chart_jvm_heap_state.reset();
+        self.chart_jvm_non_heap_state.reset();
+        self.chart_process_cpu.reset();
+        self.chart_flow_plugins_throughput.reset();
+        self.chart_flow_queue_backpressure.reset();
+    }
+
     fn focus_gained(&mut self, _app_data: &AppData) {}
 
     fn focus_lost(&mut self, _app_data: &AppData) {}

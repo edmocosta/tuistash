@@ -1,6 +1,5 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use std::marker::PhantomData;
-
-use crossterm::event::KeyEvent;
 
 use crate::api::node::{GraphDefinition, NodeInfo};
 use crate::commands::tui::app::AppData;
@@ -52,7 +51,7 @@ impl StatefulTable<PipelineTableItem> {
 type SelectedPipelineVertexTableItem = String;
 
 impl StatefulTable<SelectedPipelineVertexTableItem> {
-    pub(crate) fn update(
+    fn update(
         &mut self,
         node_info: &Option<&NodeInfo>,
         selected_pipeline: &Option<&PipelineTableItem>,
@@ -89,17 +88,17 @@ impl<'a> PipelinesState<'a> {
         }
     }
 
-    pub fn reset(&mut self) {
-        // UI
-        self.current_focus = PIPELINE_VERTEX_LIST;
-        self.show_selected_pipeline_charts = false;
-        self.show_selected_vertex_details = false;
-
-        self.pipelines_table = StatefulTable::new();
-        self.selected_pipeline_vertex = StatefulTable::new();
+    pub fn selected_pipeline_name(&self) -> Option<&String> {
+        self.pipelines_table.selected_item().map(|p| &p.name)
     }
 
-    pub(crate) fn update(&mut self, app_data: &AppData) {
+    pub fn selected_pipeline_vertex(&self) -> Option<&String> {
+        self.selected_pipeline_vertex.selected_item()
+    }
+}
+
+impl<'a> EventsListener for PipelinesState<'a> {
+    fn update(&mut self, app_data: &AppData) {
         self.pipelines_table.update(app_data);
 
         let selected_pipeline_item = if self.pipelines_table.selected_item().is_none()
@@ -114,19 +113,15 @@ impl<'a> PipelinesState<'a> {
             .update(&app_data.node_info(), &selected_pipeline_item);
     }
 
-    pub fn selected_pipeline_name(&self) -> Option<&String> {
-        self.pipelines_table.selected_item().map(|p| &p.name)
+    fn reset(&mut self) {
+        // UI
+        self.current_focus = PIPELINE_VERTEX_LIST;
+        self.show_selected_pipeline_charts = false;
+        self.show_selected_vertex_details = false;
+
+        self.pipelines_table = StatefulTable::new();
+        self.selected_pipeline_vertex = StatefulTable::new();
     }
-
-    pub fn selected_pipeline_vertex(&self) -> Option<&String> {
-        self.selected_pipeline_vertex.selected_item()
-    }
-}
-
-impl<'a> EventsListener for PipelinesState<'a> {
-    fn focus_gained(&mut self, _app_data: &AppData) {}
-
-    fn focus_lost(&mut self, _app_data: &AppData) {}
 
     fn on_enter(&mut self, _app_data: &AppData) {
         if self.current_focus == PIPELINE_VERTEX_LIST {
@@ -173,5 +168,23 @@ impl<'a> EventsListener for PipelinesState<'a> {
         }
     }
 
-    fn on_other(&mut self, _: KeyEvent, _: &AppData) {}
+    fn on_other(&mut self, key_event: KeyEvent, app_data: &AppData) {
+        // Tab navigation
+        if key_event.code == KeyCode::Tab {
+            if self.current_focus == PIPELINE_VERTEX_LIST {
+                self.on_right(app_data);
+            } else {
+                self.on_left(app_data);
+            }
+
+            return;
+        }
+
+        if let KeyCode::Char(c) = key_event.code {
+            if c.to_ascii_lowercase() == 'c' && self.pipelines_table.selected_item().is_some() {
+                self.show_selected_vertex_details = false;
+                self.show_selected_pipeline_charts = !self.show_selected_pipeline_charts;
+            }
+        };
+    }
 }

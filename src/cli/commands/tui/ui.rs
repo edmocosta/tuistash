@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::vec;
 
 use ratatui::layout::Alignment;
@@ -11,9 +12,9 @@ use ratatui::{
 };
 
 use crate::commands::tui::app::App;
-use crate::commands::tui::flows::ui::draw_flows_tab;
+use crate::commands::tui::flows::ui::{draw_flows_tab, flows_tab_shortcuts_help};
 use crate::commands::tui::node::ui::draw_node_tab;
-use crate::commands::tui::pipelines::ui::draw_pipelines_tab;
+use crate::commands::tui::pipelines::ui::{draw_pipelines_tab, pipelines_tab_shortcuts_help};
 
 pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     let constraints = if app.show_help || app.data.last_error_message().is_some() {
@@ -52,29 +53,23 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         Line::from(vec![
             Span::styled(
                 "P",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::UNDERLINED),
+                Style::default().add_modifier(Modifier::UNDERLINED | Modifier::BOLD),
             ),
-            Span::styled("ipelines", Style::default().fg(Color::Yellow)),
+            Span::styled("ipelines", Style::default().add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
             Span::styled(
                 "F",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::UNDERLINED),
+                Style::default().add_modifier(Modifier::UNDERLINED | Modifier::BOLD),
             ),
-            Span::styled("lows", Style::default().fg(Color::Yellow)),
+            Span::styled("lows", Style::default().add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
             Span::styled(
                 "N",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::UNDERLINED),
+                Style::default().add_modifier(Modifier::UNDERLINED | Modifier::BOLD),
             ),
-            Span::styled("ode", Style::default().fg(Color::Yellow)),
+            Span::styled("ode", Style::default().add_modifier(Modifier::BOLD)),
         ]),
     ];
 
@@ -82,7 +77,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         .block(Block::default().borders(Borders::NONE))
         .highlight_style(
             Style::default()
-                .fg(Color::Green)
+                .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )
         .select(app.tabs.index);
@@ -92,7 +87,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     // Help text
     let help_text = Line::from(vec![
         Span::styled("Press", Style::default().fg(Color::DarkGray)),
-        Span::styled(" <H> ", Style::default().fg(Color::Gray)),
+        Span::styled(" [H] ", Style::default().fg(Color::Yellow)),
         Span::styled("for help", Style::default().fg(Color::DarkGray)),
     ]);
 
@@ -137,7 +132,13 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     if app.data.last_error_message().is_some() {
         draw_error_panel(f, app, chunks[2]);
     } else if app.show_help {
-        draw_help_panel(f, chunks[2]);
+        let (defaults, shortcuts) = match app.tabs.index {
+            App::TAB_PIPELINES => (true, pipelines_tab_shortcuts_help(app)),
+            App::TAB_FLOWS => (true, flows_tab_shortcuts_help(app)),
+            _ => (true, Default::default()),
+        };
+
+        draw_help_panel(f, defaults, shortcuts, chunks[2]);
     }
 }
 
@@ -162,7 +163,7 @@ fn draw_error_panel(f: &mut Frame, app: &mut App, area: Rect) {
     }
 }
 
-fn draw_help_panel(f: &mut Frame, area: Rect) {
+fn draw_help_panel(f: &mut Frame, defaults: bool, shortcuts: HashMap<String, String>, area: Rect) {
     let footer_block = Block::default().borders(Borders::ALL).title("Help");
     f.render_widget(footer_block, area);
 
@@ -172,28 +173,46 @@ fn draw_help_panel(f: &mut Frame, area: Rect) {
         .margin(1)
         .split(area);
 
-    let w = Paragraph::new(Line::from(vec![
-        Span::styled("Shortcuts: ", Style::default().fg(Color::Gray)),
-        Span::styled("<P> <N> ", Style::default().fg(Color::Yellow)),
-        Span::styled("switch views", Style::default().fg(Color::Gray)),
-        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
-        Span::styled(
-            "<Up> <Down> <Left> <Right> ",
-            Style::default().fg(Color::Yellow),
-        ),
-        Span::styled("navigate", Style::default().fg(Color::Gray)),
-        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
-        Span::styled("<Enter> ", Style::default().fg(Color::Yellow)),
-        Span::styled(
-            "show pipeline flow/component details",
-            Style::default().fg(Color::Gray),
-        ),
-        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
-        Span::styled("<Esc> <Q> ", Style::default().fg(Color::Yellow)),
-        Span::styled("exit", Style::default().fg(Color::Gray)),
-    ]))
-    .alignment(Alignment::Left)
-    .wrap(Wrap { trim: true });
+    f.render_widget(
+        default_help_paragraph(defaults, shortcuts),
+        footer_chunks[0],
+    );
+}
 
-    f.render_widget(w, footer_chunks[0]);
+fn default_help_paragraph<'a>(defaults: bool, shortcuts: HashMap<String, String>) -> Paragraph<'a> {
+    let separator_span = Span::styled(" |", Style::default());
+
+    let mut content = vec![Span::styled("Shortcuts:", Style::default().fg(Color::Gray))];
+    let mut shortcuts_vec: Vec<(&String, &String)> = shortcuts.iter().collect();
+    shortcuts_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+    for (key, desc) in shortcuts_vec {
+        content.push(separator_span.clone());
+        content.push(Span::styled(
+            format!("{} ", key),
+            Style::default().fg(Color::Yellow),
+        ));
+        content.push(Span::styled(
+            desc.to_string(),
+            Style::default().fg(Color::Gray),
+        ));
+    }
+
+    if defaults {
+        content.extend(vec![
+            separator_span.clone(),
+            Span::styled("[P][F][N] ", Style::default().fg(Color::Yellow)),
+            Span::styled("switch tabs", Style::default().fg(Color::Gray)),
+            separator_span.clone(),
+            Span::styled("[▲][▼][◀][▶][Tab] ", Style::default().fg(Color::Yellow)),
+            Span::styled("navigate", Style::default().fg(Color::Gray)),
+            separator_span.clone(),
+            Span::styled("[Esc][Q] ", Style::default().fg(Color::Yellow)),
+            Span::styled("exit", Style::default().fg(Color::Gray)),
+        ]);
+    }
+
+    Paragraph::new(Line::from(content))
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true })
 }

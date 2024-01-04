@@ -1,4 +1,12 @@
+use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::widgets::TableState;
+
+pub(crate) const TABLE_HEADER_CELL_STYLE: Style =
+    Style::new().fg(Color::Gray).add_modifier(Modifier::BOLD);
+pub(crate) const TABLE_HEADER_ROW_STYLE: Style = Style::new().bg(Color::DarkGray);
+pub(crate) const TABLE_SELECTED_ROW_STYLE: Style =
+    Style::new().add_modifier(Modifier::BOLD).bg(Color::Gray);
+pub(crate) const TABLE_SELECTED_ROW_SYMBOL: &str = "▍";
 
 // Tabs
 pub struct TabsState {
@@ -44,6 +52,17 @@ impl<T> StatefulTable<T> {
         self.state.select(None);
     }
 
+    pub fn has_next(&mut self) -> bool {
+        if self.items.is_empty() {
+            return false;
+        }
+
+        match self.state.selected() {
+            Some(i) => i < self.items.len() - 1,
+            None => true,
+        }
+    }
+
     pub fn next(&mut self) -> Option<&T> {
         if self.items.is_empty() {
             return None;
@@ -64,6 +83,17 @@ impl<T> StatefulTable<T> {
         self.selected_item()
     }
 
+    pub fn has_previous(&mut self) -> bool {
+        if self.items.is_empty() {
+            return false;
+        }
+
+        match self.state.selected() {
+            Some(i) => i > 0,
+            None => false,
+        }
+    }
+
     pub fn previous(&mut self) -> Option<&T> {
         if self.items.is_empty() {
             return None;
@@ -77,7 +107,7 @@ impl<T> StatefulTable<T> {
                     i - 1
                 }
             }
-            None => 0,
+            None => self.items.len() - 1,
         };
 
         self.state.select(Some(i));

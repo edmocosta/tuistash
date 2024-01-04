@@ -355,7 +355,6 @@ fn draw_process_file_descriptor_gauge(f: &mut Frame, app: &mut App, area: Rect) 
         )
         .gauge_style(
             Style::default()
-                .fg(Color::DarkGray)
                 .bg(Color::Gray)
                 .add_modifier(Modifier::BOLD),
         )

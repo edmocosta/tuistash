@@ -254,41 +254,48 @@ pub struct Plugins {
 
 impl Plugins {
     #[allow(dead_code)]
-    pub fn get(&self, name: &str) -> Option<&Plugin> {
-        if let Some(plugin) = self.inputs.get(name) {
+    pub fn get(&self, id: &str) -> Option<&Plugin> {
+        if let Some(plugin) = self.inputs.get(id) {
             return Some(plugin);
         }
 
-        if let Some(plugin) = self.filters.get(name) {
+        if let Some(plugin) = self.filters.get(id) {
             return Some(plugin);
         }
 
-        if let Some(plugin) = self.outputs.get(name) {
+        if let Some(plugin) = self.outputs.get(id) {
             return Some(plugin);
         }
 
-        return self.codecs.get(name);
+        return self.codecs.get(id);
     }
 
     pub fn all(&self) -> HashMap<String, &Plugin> {
+        self.all_with_type()
+            .iter()
+            .map(|(id, plugin)| (id.to_string(), plugin.1))
+            .collect()
+    }
+
+    pub fn all_with_type(&self) -> HashMap<String, (String, &Plugin)> {
         let mut map = HashMap::with_capacity(
             self.inputs.len() + self.filters.len() + self.outputs.len() + self.codecs.len(),
         );
 
-        for (name, plugin) in &self.inputs {
-            map.insert(name.to_string(), plugin);
+        for (id, plugin) in &self.inputs {
+            map.insert(id.to_string(), ("input".to_string(), plugin));
         }
 
-        for (name, plugin) in &self.codecs {
-            map.insert(name.to_string(), plugin);
+        for (id, plugin) in &self.codecs {
+            map.insert(id.to_string(), ("codec".to_string(), plugin));
         }
 
-        for (name, plugin) in &self.filters {
-            map.insert(name.to_string(), plugin);
+        for (id, plugin) in &self.filters {
+            map.insert(id.to_string(), ("filter".to_string(), plugin));
         }
 
-        for (name, plugin) in &self.outputs {
-            map.insert(name.to_string(), plugin);
+        for (id, plugin) in &self.outputs {
+            map.insert(id.to_string(), ("output".to_string(), plugin));
         }
 
         map

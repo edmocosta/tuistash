@@ -44,7 +44,7 @@ impl<'a> AppData<'a> {
         self.reset();
     }
 
-    fn fetch_all(&mut self) -> Result<(), AnyError> {
+    fn fetch_all(&mut self) -> Result<&mut Self, AnyError> {
         match self.data_fetcher.fetch_info() {
             Ok(node_info) => {
                 self.node_info = Some(node_info);
@@ -67,7 +67,8 @@ impl<'a> AppData<'a> {
 
         self.errored = false;
         self.last_error_message = None;
-        Ok(())
+
+        Ok(self)
     }
 
     pub(crate) fn node_info(&self) -> Option<&NodeInfo> {
@@ -123,11 +124,10 @@ impl<'a> App<'a> {
     }
 
     fn reset(&mut self) {
-        self.pipelines_state.reset();
-        self.node_state.reset();
-        self.shared_state.reset();
-        self.flows_state.reset();
         self.data.reset();
+        self.trigger_states_event(|listener, _| {
+            listener.reset();
+        });
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) {
@@ -204,10 +204,22 @@ impl<'a> App<'a> {
             return;
         }
 
-        self.shared_state.update(&self.data);
-        self.node_state.update(&self.data);
-        self.pipelines_state.update(&self.data);
-        self.flows_state.update(&self.data);
+        self.trigger_states_event(|listener, app_data| {
+            listener.update(app_data);
+        });
+    }
+
+    fn trigger_states_event(&mut self, func: impl Fn(&mut dyn EventsListener, &AppData)) {
+        let listeners: Vec<&mut dyn EventsListener> = vec![
+            &mut self.shared_state,
+            &mut self.pipelines_state,
+            &mut self.flows_state,
+            &mut self.node_state,
+        ];
+
+        for listener in listeners {
+            func(listener, &self.data);
+        }
     }
 
     fn select_tab(&mut self, new_tab: usize) {

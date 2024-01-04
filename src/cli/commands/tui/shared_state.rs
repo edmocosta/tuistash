@@ -1,6 +1,7 @@
 use crate::api::stats::PipelineStats;
 use crate::commands::tui::app::AppData;
 use crate::commands::tui::charts::{TimestampChartState, DEFAULT_MAX_DATA_POINTS};
+use crate::commands::tui::events::EventsListener;
 use crate::commands::tui::flow_charts::{FlowMetricDataPoint, PluginFlowMetricDataPoint};
 use std::collections::HashMap;
 
@@ -147,14 +148,6 @@ impl SharedState {
         }
     }
 
-    pub(crate) fn update(&mut self, app_data: &AppData) {
-        self.update_chart_flows_states(app_data);
-    }
-
-    pub fn reset(&mut self) {
-        self.pipelines_flows_chart_state.clear();
-    }
-
     pub(crate) fn pipeline_flows_chart_state(
         &self,
         pipeline: &String,
@@ -278,5 +271,15 @@ impl SharedState {
                 }
             }
         }
+    }
+}
+
+impl EventsListener for SharedState {
+    fn update(&mut self, app_data: &AppData) {
+        self.update_chart_flows_states(app_data);
+    }
+
+    fn reset(&mut self) {
+        self.pipelines_flows_chart_state.clear();
     }
 }

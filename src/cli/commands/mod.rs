@@ -14,16 +14,16 @@ mod tui;
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Get data from Logstash
+    /// Query data from the Logstash API
     #[command(subcommand)]
     Get(GetCommands),
-    /// Monitoring TUI
+    /// Logstash TUI
     Tui(TuiArgs),
 }
 
 #[derive(Subcommand)]
 pub enum GetCommands {
-    /// Prints the current node information
+    /// Prints the current Logstash node information
     Node(NodeArgs),
 }
 

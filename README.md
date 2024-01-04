@@ -1,6 +1,6 @@
 # Tuistash
 
-A terminal user interface for Logstash.
+A Terminal User Interface for Logstash.
 
 ![demo](docs/img/demo.gif)
 
@@ -25,11 +25,11 @@ $ ./tuistash --help
 ```
 
 ```shell
-Usage: tuistash [OPTIONS] <COMMAND>
+Usage: tuistash [OPTIONS] [COMMAND]
 
 Commands:
-  get   Get data from Logstash
-  view  Monitoring TUI
+  get   Query data from the Logstash API
+  tui   Logstash TUI
   help  Print this message or the help of the given subcommand(s)
 
 Options:
@@ -39,22 +39,14 @@ Options:
       --skip-tls-verification  
   -h, --help                   Print help
   -V, --version                Print version
+
 ```
 
-### Monitoring UI:
+### TUI:
 
 ```shell
 ./tuistash
 ```
-
-#### Shortcuts:
-- `<P>`: Switch to the Pipeline view 
-- `<N>`: Switch to the Node view
-- `<F>`: When a pipeline is selected, shows its flow charts
-- `<Enter>`: When a pipeline's component is selected, it shows it details
-- `<Up>`,`<Down>`, `<Left>`, `<Right>`: Navigation
-- `<H>`: Open the help panel
-- `<Q>`, `<Esc>`: Exit
 
 ### GET command:
 

@@ -1,10 +1,10 @@
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::vec;
 
 use humansize::{format_size_i, DECIMAL};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
 use ratatui::Frame;
@@ -18,6 +18,10 @@ use crate::commands::tui::flow_charts::{
 };
 use crate::commands::tui::pipelines::graph::PipelineGraph;
 use crate::commands::tui::pipelines::state::PipelineTableItem;
+use crate::commands::tui::widgets::{
+    TABLE_HEADER_CELL_STYLE, TABLE_HEADER_ROW_STYLE, TABLE_SELECTED_ROW_STYLE,
+    TABLE_SELECTED_ROW_SYMBOL,
+};
 
 pub(crate) fn draw_pipelines_tab(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
@@ -25,6 +29,16 @@ pub(crate) fn draw_pipelines_tab(f: &mut Frame, app: &mut App, area: Rect) {
         .split(area);
 
     draw_pipelines_widgets(f, app, chunks[0]);
+}
+
+pub(crate) fn pipelines_tab_shortcuts_help(_: &App) -> HashMap<String, String> {
+    let mut keys = HashMap::with_capacity(2);
+    keys.insert(
+        "[↵]".to_string(),
+        "open pipeline charts/vertex details".to_string(),
+    );
+    keys.insert("[C]".to_string(), "pipeline charts".to_string());
+    keys
 }
 
 fn draw_pipelines_widgets(f: &mut Frame, app: &mut App, area: Rect) {
@@ -48,23 +62,21 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
         .collect();
 
     let headers = ["Name"];
-    let header_style: Style = Style::default()
-        .fg(Color::Gray)
-        .add_modifier(Modifier::BOLD);
+    let header_cells = headers
+        .iter()
+        .map(|h| Cell::from(*h).style(TABLE_HEADER_CELL_STYLE));
 
-    let row_style: Style = Style::default().bg(Color::DarkGray);
-    let selected_style: Style = Style::default().add_modifier(Modifier::REVERSED);
-
-    let header_cells = headers.iter().map(|h| Cell::from(*h).style(header_style));
-    let header = Row::new(header_cells).style(row_style).height(1);
+    let header = Row::new(header_cells)
+        .style(TABLE_HEADER_ROW_STYLE)
+        .height(1);
 
     let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
-
     let pipelines = Table::new(rows, widths)
         .header(header)
         .block(Block::default().borders(Borders::ALL).title("Pipelines"))
         .column_spacing(2)
-        .highlight_style(selected_style)
+        .highlight_style(TABLE_SELECTED_ROW_STYLE)
+        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
         .widths([
             Constraint::Percentage(100), // Name
         ]);
@@ -124,20 +136,21 @@ fn draw_selected_pipeline_vertices(f: &mut Frame, app: &mut App, area: Rect) {
         }
 
         let headers = ["Name", "Kind", "Events in", "Events out", "Duration (ms/e)"];
-        let header_style: Style = Style::default()
-            .fg(Color::Gray)
-            .add_modifier(Modifier::BOLD);
-        let row_style: Style = Style::default().bg(Color::DarkGray);
-        let selected_style: Style = Style::default().add_modifier(Modifier::REVERSED);
+        let header_cells = headers
+            .iter()
+            .map(|h| Cell::from(*h).style(TABLE_HEADER_CELL_STYLE));
 
-        let header_cells = headers.iter().map(|h| Cell::from(*h).style(header_style));
-        let header = Row::new(header_cells).style(row_style).height(1);
+        let header = Row::new(header_cells)
+            .style(TABLE_HEADER_ROW_STYLE)
+            .height(1);
+
         let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
         let vertices_table = Table::new(rows, widths)
             .header(header)
             .block(Block::default().borders(Borders::ALL).title("Pipeline"))
             .column_spacing(2)
-            .highlight_style(selected_style)
+            .highlight_style(TABLE_SELECTED_ROW_STYLE)
+            .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
             .widths([
                 Constraint::Percentage(49), // Name
                 Constraint::Percentage(8),  // Kind
