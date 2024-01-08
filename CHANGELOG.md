@@ -1,4 +1,4 @@
-## 0.1.3
+## 0.2.0
 - Added a new `flows` view built on top of the latest Logstash flow metrics.
 - **BREAKING**: Renamed the `view` command to `tui`.
 - Changed to execute the `tui` command by default when no specific command is supplied.
