@@ -1,3 +1,4 @@
+use crate::cli::Cli;
 use crate::commands::Command;
 use std::panic;
 use std::process::exit;
@@ -27,11 +28,11 @@ fn run() -> Result<ExitCode, AnyError> {
     let mut out = Output::new(&mut stdout_lock);
 
     match cli.command {
-        None => {
-            Command::execute_default_command(&mut out, &config)?;
-        }
         Some(cmd) => {
             cmd.execute(&mut out, &config)?;
+        }
+        None => {
+            Command::execute_default_command(&mut out, &config)?;
         }
     }
 

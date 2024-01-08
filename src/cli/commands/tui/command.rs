@@ -8,11 +8,17 @@ use crate::config::Config;
 use crate::errors::AnyError;
 use crate::output::Output;
 
-#[derive(Args, Default)]
+#[derive(Args)]
 pub struct TuiArgs {
     /// Refresh interval in seconds
-    #[arg(default_value = "1", short = 'i', long)]
+    #[arg(default_value_t = 1, short = 'i', long)]
     pub interval: u64,
+}
+
+impl Default for TuiArgs {
+    fn default() -> Self {
+        TuiArgs { interval: 1 }
+    }
 }
 
 pub struct TuiCommand;
