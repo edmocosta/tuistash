@@ -1,7 +1,7 @@
 use crate::commands::tui::app::AppData;
 use crossterm::event::KeyEvent;
 
-pub trait EventsListener {
+pub(crate) trait EventsListener {
     fn update(&mut self, app_data: &AppData);
     fn reset(&mut self);
     fn focus_gained(&mut self, _: &AppData) {}
