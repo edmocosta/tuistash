@@ -24,8 +24,8 @@ const ANALYSIS_WINDOW_5_MIN: usize = 3;
 const ANALYSIS_WINDOW_15_MIN: usize = 4;
 const ANALYSIS_WINDOW_1_HOUR: usize = 5;
 const ANALYSIS_WINDOW_24_HOUR: usize = 6;
-const DEFAULT_COLORS: (Color, Color, Color) = (Color::Red, Color::Gray, Color::Green);
-const REVERSED_COLORS: (Color, Color, Color) = (Color::Green, Color::Gray, Color::Red);
+const DEFAULT_COLORS: (Color, Color, Color) = (Color::Red, Color::Reset, Color::Green);
+const REVERSED_COLORS: (Color, Color, Color) = (Color::Green, Color::Reset, Color::Red);
 
 pub(crate) fn draw_flows_tab(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
@@ -148,7 +148,12 @@ pub fn create_flow_metric_cell<'a>(
         };
 
         let decimals = 4;
-        let mut difference_text = difference.format_number_with_decimals(decimals);
+        let mut difference_text = if percentage {
+            difference.format_number_with_decimals(2)
+        } else {
+            difference.format_number_with_decimals(decimals)
+        };
+
         if percentage {
             difference_text.insert(difference_text.len(), '%');
         }
@@ -171,7 +176,7 @@ pub fn create_flow_metric_cell<'a>(
                 2,
                 Span::styled(
                     metric.lifetime.format_number_with_decimals(decimals) + "Σ ",
-                    Style::default().fg(Color::Gray),
+                    Style::default().fg(Color::Reset),
                 ),
             );
         }
@@ -270,7 +275,7 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
     let (name_cell_constraint, workers_cell_constraint) = if hide_flow_cells {
         (Constraint::Percentage(80), Constraint::Percentage(20))
     } else {
-        (Constraint::Percentage(20), Constraint::Percentage(5))
+        (Constraint::Percentage(15), Constraint::Percentage(5))
     };
 
     let pipelines = Table::new(rows, widths)
@@ -282,11 +287,11 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
         .widths([
             name_cell_constraint,       // Name
             workers_cell_constraint,    // Workers
-            Constraint::Percentage(12), // Input
-            Constraint::Percentage(12), // Filter
-            Constraint::Percentage(12), // Output
-            Constraint::Percentage(12), // Queue Backpressure
-            Constraint::Percentage(12), // Worker Concurrency
+            Constraint::Percentage(13), // Input
+            Constraint::Percentage(13), // Filter
+            Constraint::Percentage(13), // Output
+            Constraint::Percentage(13), // Queue Backpressure
+            Constraint::Percentage(13), // Worker Concurrency
         ]);
 
     f.render_stateful_widget(

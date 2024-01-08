@@ -1,4 +1,3 @@
-use crate::cli::Cli;
 use crate::commands::Command;
 use std::panic;
 use std::process::exit;
