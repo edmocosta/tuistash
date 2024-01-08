@@ -15,10 +15,32 @@ brew tap edmocosta/homebrew-tap
 brew install tuistash
 ```
 
-### Manual
-Download the latest release from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases).
+### Manual 
+Download the latest release from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases) or build it from the source:
+
+1 - Install Rust and Cargo (Linux and macOS):
+```shell
+curl https://sh.rustup.rs -sSf | sh
+```
+
+2 - Clone the repository:
+```shell
+git clone https://github.com/edmocosta/tuistash.git
+```
+
+3 - Build the binary (`target/release/tuistash`)
+```shell
+cd tuistash
+```
+
+```shell
+cargo build --release
+```
 
 ## Usage
+
+**The Logstash's [monitoring API](https://www.elastic.co/guide/en/logstash/current/monitoring-logstash.html) must be enabled
+and accessible from the client machine.**
 
 ```shell
 $ ./tuistash --help
