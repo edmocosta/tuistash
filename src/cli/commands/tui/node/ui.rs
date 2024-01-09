@@ -1,22 +1,80 @@
-use humansize::{format_size_i, ToF64, DECIMAL};
-use tui::backend::Backend;
-use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Modifier, Style};
-use tui::text::Span;
-use tui::widgets::{Axis, Block, Borders, Chart, Dataset, Gauge, GraphType};
-use tui::{symbols, Frame};
+use humansize::{format_size_i, DECIMAL};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, Gauge, GraphType, Paragraph, Wrap};
+use ratatui::{symbols, Frame};
 
-use crate::commands::view::app::App;
-use crate::commands::view::charts::{
-    create_binary_size_label_spans, create_percentage_label_spans, create_timestamp_label_spans,
-    DEFAULT_LABELS_COUNT,
+use crate::commands::formatter::{DurationFormatter, NumberFormatter};
+use crate::commands::tui::app::App;
+use crate::commands::tui::charts::{
+    create_chart_binary_size_label_spans, create_chart_percentage_label_spans,
+    create_chart_timestamp_label_spans, DEFAULT_LABELS_COUNT,
 };
-use crate::commands::view::flow_charts::{render_flow_chart, render_plugins_flow_chart};
+use crate::commands::tui::flow_charts::{
+    draw_flow_metric_chart, draw_plugin_throughput_flow_chart,
+};
 
-pub(crate) fn render_node_charts<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+pub(crate) fn draw_node_tab(f: &mut Frame, app: &mut App, area: Rect) {
+    let chunks = Layout::default()
+        .constraints([Constraint::Percentage(100)].as_ref())
+        .split(area);
+
+    draw_node_widgets(f, app, chunks[0]);
+}
+
+fn draw_node_widgets(f: &mut Frame, app: &mut App, area: Rect) {
+    let chunks = Layout::default()
+        .constraints(vec![Constraint::Length(3), Constraint::Percentage(82)])
+        .direction(Direction::Vertical)
+        .split(area);
+    {
+        // Node overview
+        let events_block = Block::default().title("Overview").borders(Borders::ALL);
+        let overview_text: Line = if let Some(node_stats) = &app.data.node_stats() {
+            Line::from(vec![
+                Span::styled("Events in: ", Style::default().fg(Color::DarkGray)),
+                Span::from(node_stats.events.r#in.format_number()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Events out: ", Style::default().fg(Color::DarkGray)),
+                Span::from(node_stats.events.out.format_number()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Reloads: ", Style::default().fg(Color::DarkGray)),
+                Span::from(node_stats.reloads.successes.format_number()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Pipeline workers: ", Style::default().fg(Color::DarkGray)),
+                Span::from(node_stats.pipeline.workers.to_string()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    "Pipeline batch size: ",
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::from(node_stats.pipeline.batch_size.to_string()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Version: ", Style::default().fg(Color::DarkGray)),
+                Span::from(node_stats.version.as_str()),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Uptime: ", Style::default().fg(Color::DarkGray)),
+                Span::from(node_stats.jvm.uptime_in_millis.format_duration()),
+            ])
+        } else {
+            Line::from(vec![Span::styled(
+                "-",
+                Style::default().fg(Color::DarkGray),
+            )])
+        };
+
+        let info_paragraph = Paragraph::new(overview_text)
+            .block(events_block)
+            .wrap(Wrap { trim: true });
+
+        f.render_widget(info_paragraph.clone(), chunks[0]);
+
+        draw_node_charts(f, app, chunks[1]);
+    }
+}
+
+fn draw_node_charts(f: &mut Frame, app: &mut App, area: Rect) {
     let main_chunks = Layout::default()
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .direction(Direction::Horizontal)
@@ -33,18 +91,18 @@ where
         )
         .split(main_chunks[0]);
 
-    render_process_file_descriptor_gauge(f, app, flow_chart_chunks[0]);
-    render_plugins_flow_chart(
+    draw_process_file_descriptor_gauge(f, app, flow_chart_chunks[0]);
+    draw_plugin_throughput_flow_chart(
         f,
         "Throughput",
-        &app.state.chart_flow_plugins_throughput,
+        &app.node_state.chart_flow_plugins_throughput,
         flow_chart_chunks[1],
     );
-    render_flow_chart(
+    draw_flow_metric_chart(
         f,
         "Queue Backpressure",
         None,
-        &app.state.chart_flow_queue_backpressure,
+        &app.node_state.chart_flow_queue_backpressure,
         flow_chart_chunks[2],
     );
 
@@ -59,25 +117,22 @@ where
         )
         .split(main_chunks[1]);
 
-    render_jvm_heap_chart(f, app, node_chart_chunks[0]);
-    render_jvm_non_heap_chart(f, app, node_chart_chunks[1]);
-    render_process_cpu_chart(f, app, node_chart_chunks[2]);
+    draw_jvm_heap_chart(f, app, node_chart_chunks[0]);
+    draw_jvm_non_heap_chart(f, app, node_chart_chunks[1]);
+    draw_process_cpu_chart(f, app, node_chart_chunks[2]);
 }
 
-fn render_jvm_heap_chart<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_jvm_heap_chart(f: &mut Frame, app: &mut App, area: Rect) {
     let mut heap_max_data: Vec<(f64, f64)> = vec![];
     let mut heap_used_data: Vec<(f64, f64)> = vec![];
 
-    for data in &app.state.chart_jvm_heap_state.data_points {
-        heap_max_data.push((data.timestamp.to_f64(), data.heap_max_in_bytes.to_f64()));
-        heap_used_data.push((data.timestamp.to_f64(), data.heap_used_in_bytes.to_f64()));
+    for data in &app.node_state.chart_jvm_heap_state.data_points {
+        heap_max_data.push((data.timestamp as f64, data.heap_max_in_bytes as f64));
+        heap_used_data.push((data.timestamp as f64, data.heap_used_in_bytes as f64));
     }
 
     let current_max_heap = app
-        .state
+        .node_state
         .chart_jvm_heap_state
         .data_points
         .front()
@@ -85,7 +140,7 @@ where
         .unwrap_or(0);
 
     let current_used_heap = app
-        .state
+        .node_state
         .chart_jvm_heap_state
         .data_points
         .front()
@@ -120,9 +175,9 @@ where
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(*app.state.chart_jvm_heap_state.x_axis_bounds())
-                .labels(create_timestamp_label_spans(
-                    app.state
+                .bounds(*app.node_state.chart_jvm_heap_state.x_axis_bounds())
+                .labels(create_chart_timestamp_label_spans(
+                    app.node_state
                         .chart_jvm_heap_state
                         .x_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
@@ -130,9 +185,9 @@ where
         .y_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(*app.state.chart_jvm_heap_state.y_axis_bounds())
-                .labels(create_binary_size_label_spans(
-                    app.state
+                .bounds(*app.node_state.chart_jvm_heap_state.y_axis_bounds())
+                .labels(create_chart_binary_size_label_spans(
+                    app.node_state
                         .chart_jvm_heap_state
                         .y_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
@@ -141,26 +196,20 @@ where
     f.render_widget(chart, area);
 }
 
-fn render_jvm_non_heap_chart<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_jvm_non_heap_chart(f: &mut Frame, app: &mut App, area: Rect) {
     let mut non_heap_used: Vec<(f64, f64)> = vec![];
     let mut non_heap_committed: Vec<(f64, f64)> = vec![];
 
-    for data in &app.state.chart_jvm_non_heap_state.data_points {
-        non_heap_used.push((
-            data.timestamp.to_f64(),
-            data.non_heap_used_in_bytes.to_f64(),
-        ));
+    for data in &app.node_state.chart_jvm_non_heap_state.data_points {
+        non_heap_used.push((data.timestamp as f64, data.non_heap_used_in_bytes as f64));
         non_heap_committed.push((
-            data.timestamp.to_f64(),
-            data.non_heap_committed_in_bytes.to_f64(),
+            data.timestamp as f64,
+            data.non_heap_committed_in_bytes as f64,
         ));
     }
 
     let current_heap_used = app
-        .state
+        .node_state
         .chart_jvm_non_heap_state
         .data_points
         .front()
@@ -168,7 +217,7 @@ where
         .unwrap_or(0);
 
     let current_heap_committed = app
-        .state
+        .node_state
         .chart_jvm_non_heap_state
         .data_points
         .front()
@@ -206,9 +255,9 @@ where
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(*app.state.chart_jvm_non_heap_state.x_axis_bounds())
-                .labels(create_timestamp_label_spans(
-                    app.state
+                .bounds(*app.node_state.chart_jvm_non_heap_state.x_axis_bounds())
+                .labels(create_chart_timestamp_label_spans(
+                    app.node_state
                         .chart_jvm_non_heap_state
                         .x_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
@@ -216,9 +265,9 @@ where
         .y_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(*app.state.chart_jvm_non_heap_state.y_axis_bounds())
-                .labels(create_binary_size_label_spans(
-                    app.state
+                .bounds(*app.node_state.chart_jvm_non_heap_state.y_axis_bounds())
+                .labels(create_chart_binary_size_label_spans(
+                    app.node_state
                         .chart_jvm_non_heap_state
                         .y_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
@@ -227,20 +276,17 @@ where
     f.render_widget(chart, area);
 }
 
-fn render_process_cpu_chart<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_process_cpu_chart(f: &mut Frame, app: &mut App, area: Rect) {
     let cpu_percentage_data: Vec<(f64, f64)> = app
-        .state
+        .node_state
         .chart_process_cpu
         .data_points
         .iter()
-        .map(|p| (p.timestamp.to_f64(), p.percent.to_f64()))
+        .map(|p| (p.timestamp as f64, p.percent as f64))
         .collect();
 
     let current_value = app
-        .state
+        .node_state
         .chart_process_cpu
         .data_points
         .front()
@@ -264,9 +310,9 @@ where
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(*app.state.chart_process_cpu.x_axis_bounds())
-                .labels(create_timestamp_label_spans(
-                    app.state
+                .bounds(*app.node_state.chart_process_cpu.x_axis_bounds())
+                .labels(create_chart_timestamp_label_spans(
+                    app.node_state
                         .chart_process_cpu
                         .x_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
@@ -274,9 +320,9 @@ where
         .y_axis(
             Axis::default()
                 .style(Style::default().fg(Color::Gray))
-                .bounds(*app.state.chart_process_cpu.y_axis_bounds())
-                .labels(create_percentage_label_spans(
-                    app.state
+                .bounds(*app.node_state.chart_process_cpu.y_axis_bounds())
+                .labels(create_chart_percentage_label_spans(
+                    app.node_state
                         .chart_process_cpu
                         .y_axis_labels_values(DEFAULT_LABELS_COUNT),
                 )),
@@ -285,15 +331,12 @@ where
     f.render_widget(chart, area);
 }
 
-fn render_process_file_descriptor_gauge<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
-where
-    B: Backend,
-{
+fn draw_process_file_descriptor_gauge(f: &mut Frame, app: &mut App, area: Rect) {
     let usage: u16;
     let max_file_descriptors;
     let open_file_descriptors;
 
-    if let Some(stats) = &app.state.node_stats {
+    if let Some(stats) = &app.data.node_stats() {
         open_file_descriptors = stats.process.open_file_descriptors;
         max_file_descriptors = stats.process.max_file_descriptors;
         usage = ((open_file_descriptors * 100) / max_file_descriptors) as u16;
@@ -312,7 +355,6 @@ where
         )
         .gauge_style(
             Style::default()
-                .fg(Color::DarkGray)
                 .bg(Color::Gray)
                 .add_modifier(Modifier::BOLD),
         )

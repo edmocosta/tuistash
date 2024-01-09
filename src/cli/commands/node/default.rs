@@ -1,7 +1,11 @@
-use chrono::NaiveDateTime;
+use crate::commands::formatter::DurationFormatter;
+use colored::Colorize;
 use humansize::{format_size_i, DECIMAL};
+use std::time::SystemTime;
 use tabled::builder::Builder;
-use tabled::{row, Style, Table};
+use tabled::settings::Style;
+use tabled::Table;
+use time::OffsetDateTime;
 
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::commands::node::output::ValueFormatter;
@@ -21,21 +25,22 @@ impl ValueFormatter for DefaultFormatter {
 
 fn create_info_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
-    builder.set_columns(vec![
-        "ID".to_string(),
-        "NAME".to_string(),
-        "HOST".to_string(),
-        "VERSION".to_string(),
-        "HTTP_ADDRESS".to_string(),
-        "STATUS".to_string(),
-        "WORKERS".to_string(),
-        "BATCH_SIZE".to_string(),
-        "BATCH_DELAY".to_string(),
-        "EPHEMERAL_ID".to_string(),
+
+    builder.set_header(vec![
+        "ID".bold().to_string(),
+        "NAME".bold().to_string(),
+        "HOST".bold().to_string(),
+        "VERSION".bold().to_string(),
+        "HTTP_ADDRESS".bold().to_string(),
+        "STATUS".bold().to_string(),
+        "WORKERS".bold().to_string(),
+        "BATCH_SIZE".bold().to_string(),
+        "BATCH_DELAY".bold().to_string(),
+        "EPHEMERAL_ID".bold().to_string(),
     ]);
 
     let node = &node_info.node;
-    builder.add_record(vec![
+    builder.push_record(vec![
         node.id.to_string(),
         node.name.to_string(),
         node.host.to_string(),
@@ -56,20 +61,20 @@ fn create_info_table(node_info: &NodeInfo) -> Table {
 fn create_pipelines_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
 
-    builder.set_columns(vec![
-        "NAME".to_string(),
-        "WORKERS".to_string(),
-        "BATCH_SIZE".to_string(),
-        "BATCH_DELAY".to_string(),
-        "CONFIG_RELOAD_AUTOMATIC".to_string(),
-        "CONFIG_RELOAD_INTERVAL".to_string(),
-        "DLQ_ENABLED".to_string(),
-        "EPHEMERAL_ID".to_string(),
+    builder.set_header(vec![
+        "NAME".bold().to_string(),
+        "WORKERS".bold().to_string(),
+        "BATCH_SIZE".bold().to_string(),
+        "BATCH_DELAY".bold().to_string(),
+        "CONFIG_RELOAD_AUTOMATIC".bold().to_string(),
+        "CONFIG_RELOAD_INTERVAL".bold().to_string(),
+        "DLQ_ENABLED".bold().to_string(),
+        "EPHEMERAL_ID".bold().to_string(),
     ]);
 
     if node_info.pipelines.is_some() {
         for (name, pipeline) in node_info.pipelines.as_ref().unwrap() {
-            builder.add_record(vec![
+            builder.push_record(vec![
                 name.to_string(),
                 pipeline.workers.to_string(),
                 pipeline.batch_size.to_string(),
@@ -90,16 +95,16 @@ fn create_pipelines_table(node_info: &NodeInfo) -> Table {
 fn create_os_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
 
-    builder.set_columns(vec![
-        "NAME".to_string(),
-        "VERSION".to_string(),
-        "ARCH".to_string(),
-        "AVAILABLE_PROCESSORS".to_string(),
+    builder.set_header(vec![
+        "NAME".bold().to_string(),
+        "VERSION".bold().to_string(),
+        "ARCH".bold().to_string(),
+        "AVAILABLE_PROCESSORS".bold().to_string(),
     ]);
 
     if node_info.os.is_some() {
         let os = node_info.os.as_ref().unwrap();
-        builder.add_record(vec![
+        builder.push_record(vec![
             os.name.to_string(),
             os.version.to_string(),
             os.arch.to_string(),
@@ -115,27 +120,30 @@ fn create_os_table(node_info: &NodeInfo) -> Table {
 fn create_jvm_table(node_info: &NodeInfo) -> Table {
     let mut builder = Builder::default();
 
-    builder.set_columns(vec![
-        "PID".to_string(),
-        "VERSION".to_string(),
-        "VM".to_string(),
-        "START_TIME".to_string(),
-        "HEAP_INIT_MAX".to_string(),
-        "NON_HEAP_INIT_MAX".to_string(),
-        "GC_COLLECTORS".to_string(),
+    builder.set_header(vec![
+        "PID".bold().to_string(),
+        "VERSION".bold().to_string(),
+        "VM".bold().to_string(),
+        "START_TIME".bold().to_string(),
+        "HEAP_INIT_MAX".bold().to_string(),
+        "NON_HEAP_INIT_MAX".bold().to_string(),
+        "GC_COLLECTORS".bold().to_string(),
     ]);
 
     if node_info.jvm.is_some() {
         let jvm = node_info.jvm.as_ref().unwrap();
-        let jvm_start_time = NaiveDateTime::from_timestamp_millis(jvm.start_time_in_millis)
-            .map(|value| value.format("%Y-%m-%d %H:%M:%S").to_string())
+
+        let jvm_start_time = SystemTime::now()
+            .duration_since(SystemTime::from(
+                OffsetDateTime::from_unix_timestamp(jvm.start_time_in_millis / 1000).unwrap(),
+            ))
             .unwrap_or_default();
 
-        builder.add_record(vec![
+        builder.push_record(vec![
             jvm.pid.to_string(),
             jvm.version.to_string(),
             format!("{} {} ({})", jvm.vm_name, jvm.vm_vendor, jvm.vm_version),
-            jvm_start_time,
+            (jvm_start_time.as_millis() as u64).format_duration(),
             format!(
                 "{} / {}",
                 humanize_bytes(&jvm.mem.heap_init_in_bytes),
@@ -170,21 +178,22 @@ fn new_default_table(node_info: &NodeInfo, types: Option<&[NodeInfoType]>) -> Ta
                     match info_type {
                         NodeInfoType::Os => {
                             add_section_separator(&mut builder, info_types, info_type);
-                            builder.add_record(vec![create_os_table(node_info).to_string()]);
+                            builder.push_record(vec![create_os_table(node_info).to_string()]);
                         }
                         NodeInfoType::Pipelines => {
                             add_section_separator(&mut builder, info_types, info_type);
-                            builder.add_record(vec![create_pipelines_table(node_info).to_string()]);
+                            builder
+                                .push_record(vec![create_pipelines_table(node_info).to_string()]);
                         }
                         NodeInfoType::Jvm => {
                             add_section_separator(&mut builder, info_types, info_type);
-                            builder.add_record(vec![create_jvm_table(node_info).to_string()]);
+                            builder.push_record(vec![create_jvm_table(node_info).to_string()]);
                         }
                         _ => {
                             add_section_separator(&mut builder, info_types, info_type);
-                            builder.add_record(vec![
-                                "Default format not supported for this type".to_string()
-                            ]);
+                            builder.push_record(vec!["Default format not supported for this type"
+                                .red()
+                                .to_string()]);
                         }
                     }
                 }
@@ -208,23 +217,33 @@ fn add_section_separator(
 }
 
 fn add_section_separator_record(builder: &mut Builder, current: &NodeInfoType) {
-    let mut section = row![current.to_string().to_uppercase()];
-    section.with(Style::empty());
-    builder.add_record(vec![section.to_string()]);
+    let mut section_builder = Builder::new();
+
+    section_builder.push_record(vec![current
+        .to_string()
+        .to_uppercase()
+        .blue()
+        .bold()
+        .underline()
+        .to_string()]);
+
+    let mut section_table = section_builder.build();
+    section_table.with(Style::empty());
+    builder.push_record(vec![section_table.to_string()]);
 }
 
 fn add_all_tables(builder: &mut Builder, node_info: &NodeInfo) {
     add_section_separator_record(builder, &NodeInfoType::All);
-    builder.add_record(vec![create_info_table(node_info).to_string()]);
+    builder.push_record(vec![create_info_table(node_info).to_string()]);
 
     add_section_separator_record(builder, &NodeInfoType::Pipelines);
-    builder.add_record(vec![create_pipelines_table(node_info).to_string()]);
+    builder.push_record(vec![create_pipelines_table(node_info).to_string()]);
 
     add_section_separator_record(builder, &NodeInfoType::Jvm);
-    builder.add_record(vec![create_jvm_table(node_info).to_string()]);
+    builder.push_record(vec![create_jvm_table(node_info).to_string()]);
 
     add_section_separator_record(builder, &NodeInfoType::Os);
-    builder.add_record(vec![create_os_table(node_info).to_string()]);
+    builder.push_record(vec![create_os_table(node_info).to_string()]);
 }
 
 fn humanize_bytes(b: &i64) -> String {

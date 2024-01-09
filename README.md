@@ -1,6 +1,6 @@
 # Tuistash
 
-A terminal user interface for Logstash.
+A Terminal User Interface for Logstash.
 
 ![demo](docs/img/demo.gif)
 
@@ -15,21 +15,43 @@ brew tap edmocosta/homebrew-tap
 brew install tuistash
 ```
 
-### Manual
-Download the latest release from the [github releases page](https://github.com/edmocosta/tuistash/releases).
+### Manual 
+Download the latest release from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases) or build it from the source:
+
+1 - Install Rust and Cargo (Linux and macOS):
+```shell
+curl https://sh.rustup.rs -sSf | sh
+```
+
+2 - Clone the repository:
+```shell
+git clone https://github.com/edmocosta/tuistash.git
+```
+
+3 - Build the binary (`target/release/tuistash`)
+```shell
+cd tuistash
+```
+
+```shell
+cargo build --release
+```
 
 ## Usage
+
+**The Logstash's [monitoring API](https://www.elastic.co/guide/en/logstash/current/monitoring-logstash.html) must be enabled
+and accessible from the client machine.**
 
 ```shell
 $ ./tuistash --help
 ```
 
 ```shell
-Usage: tuistash [OPTIONS] <COMMAND>
+Usage: tuistash [OPTIONS] [COMMAND]
 
 Commands:
-  get   Get data from Logstash
-  view  Monitoring TUI
+  get   Query data from the Logstash API
+  tui   Logstash TUI
   help  Print this message or the help of the given subcommand(s)
 
 Options:
@@ -39,22 +61,14 @@ Options:
       --skip-tls-verification  
   -h, --help                   Print help
   -V, --version                Print version
+
 ```
 
-### Monitoring UI:
+### TUI:
 
 ```shell
-./tuistash view
+./tuistash
 ```
-
-#### Shortcuts:
-- `<P>`: Switch to the Pipeline view 
-- `<N>`: Switch to the Node view
-- `<F>`: When a pipeline is selected, shows its flow charts
-- `<Enter>`: When a pipeline's component is selected, it shows it details
-- `<Up>`,`<Down>`, `<Left>`, `<Right>`: Navigation
-- `<H>`: Open the help panel
-- `<Q>`, `<Esc>`: Exit
 
 ### GET command:
 

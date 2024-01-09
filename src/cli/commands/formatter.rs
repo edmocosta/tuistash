@@ -54,3 +54,9 @@ impl NumberFormatter for i64 {
         }
     }
 }
+
+impl NumberFormatter for f64 {
+    fn format_number_with_decimals(&self, decimals: usize) -> String {
+        format!("{:.1$}", self, decimals)
+    }
+}

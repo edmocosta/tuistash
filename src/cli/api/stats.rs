@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
 use serde::Serialize;
+use serde::{Deserialize, Deserializer};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -175,13 +175,25 @@ mod optional_infinity_f64_value {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PipelineStats {
+    #[serde(deserialize_with = "deserialize_null_default")]
     pub events: Events,
+    #[serde(deserialize_with = "deserialize_null_default")]
     pub flow: PipelineFlow,
     pub plugins: Plugins,
     pub reloads: Reloads,
+    #[serde(deserialize_with = "deserialize_null_default")]
     pub queue: Queue,
     #[serde(with = "vertices")]
     pub vertices: HashMap<String, NodeStatsVertex>,
+}
+
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }
 
 mod vertices {
@@ -241,20 +253,52 @@ pub struct Plugins {
 }
 
 impl Plugins {
-    pub fn get(&self, name: &str) -> Option<&Plugin> {
-        if let Some(plugin) = self.inputs.get(name) {
+    #[allow(dead_code)]
+    pub fn get(&self, id: &str) -> Option<&Plugin> {
+        if let Some(plugin) = self.inputs.get(id) {
             return Some(plugin);
         }
 
-        if let Some(plugin) = self.filters.get(name) {
+        if let Some(plugin) = self.filters.get(id) {
             return Some(plugin);
         }
 
-        if let Some(plugin) = self.outputs.get(name) {
+        if let Some(plugin) = self.outputs.get(id) {
             return Some(plugin);
         }
 
-        return self.codecs.get(name);
+        return self.codecs.get(id);
+    }
+
+    pub fn all(&self) -> HashMap<String, &Plugin> {
+        self.all_with_type()
+            .iter()
+            .map(|(id, plugin)| (id.to_string(), plugin.1))
+            .collect()
+    }
+
+    pub fn all_with_type(&self) -> HashMap<String, (String, &Plugin)> {
+        let mut map = HashMap::with_capacity(
+            self.inputs.len() + self.filters.len() + self.outputs.len() + self.codecs.len(),
+        );
+
+        for (id, plugin) in &self.inputs {
+            map.insert(id.to_string(), ("input".to_string(), plugin));
+        }
+
+        for (id, plugin) in &self.codecs {
+            map.insert(id.to_string(), ("codec".to_string(), plugin));
+        }
+
+        for (id, plugin) in &self.filters {
+            map.insert(id.to_string(), ("filter".to_string(), plugin));
+        }
+
+        for (id, plugin) in &self.outputs {
+            map.insert(id.to_string(), ("output".to_string(), plugin));
+        }
+
+        map
     }
 }
 
@@ -296,6 +340,7 @@ pub struct Plugin {
 pub struct PluginFlow {
     pub throughput: Option<FlowMetricValue>,
     pub worker_utilization: Option<FlowMetricValue>,
+    pub worker_millis_per_event: Option<FlowMetricValue>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
