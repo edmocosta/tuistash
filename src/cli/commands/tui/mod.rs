@@ -8,6 +8,7 @@ mod data_fetcher;
 mod events;
 mod flow_charts;
 
+mod data_decorator;
 mod flows;
 mod node;
 mod pipelines;

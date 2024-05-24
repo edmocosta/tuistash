@@ -20,7 +20,10 @@ fn run() -> Result<ExitCode, AnyError> {
     let username = cli.username.as_deref();
     let password = cli.password.as_deref();
     let api = api::Client::new(&cli.host, username, password, cli.skip_tls_verification).unwrap();
-    let config = Config { api: &api };
+    let config = Config {
+        api: &api,
+        diagnostic_path: cli.diagnostic_path,
+    };
 
     let stdout = std::io::stdout();
     let mut stdout_lock = stdout.lock();

@@ -1,25 +1,10 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
 use uuid::Uuid;
 
 use crate::api::node::{GraphDefinition, Vertex};
 use crate::commands::tui::pipelines::state::PipelineTableItem;
-
-#[derive(Debug, Copy, Clone)]
-pub struct Stats {
-    pub events_in: Option<i64>,
-    pub events_out: Option<i64>,
-    pub duration_in_millis: Option<u64>,
-    pub queue_push_duration_in_millis: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Node<'a> {
-    pub vertex: &'a Vertex,
-    pub stats: Option<&'a Stats>,
-}
 
 pub struct Data<'a, T> {
     pub value: &'a T,
@@ -123,7 +108,8 @@ impl<'a> PipelineGraph<'a> {
                     return line_order;
                 }
             }
-            Ordering::Equal
+
+            a_vertex.id.cmp(&b_vertex.id)
         }
     }
 
@@ -138,7 +124,7 @@ impl<'a> PipelineGraph<'a> {
     ) {
         if let Some(vertices) = graph.vertices.get(vertex_id) {
             if vertex_type == "if" {
-                let mut when_vertices = vec![vec![], vec![]];
+                let mut when_vertices = [vec![], vec![]];
                 let mut other_vertices = vec![];
 
                 for edge in vertices {

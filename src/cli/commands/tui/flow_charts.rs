@@ -1,3 +1,4 @@
+use crate::commands::formatter::NumberFormatter;
 use crate::commands::tui::charts::{
     create_chart_float_label_spans, create_chart_timestamp_label_spans, ChartDataPoint,
     TimestampChartState, DEFAULT_LABELS_COUNT,
@@ -87,19 +88,19 @@ pub(crate) fn draw_plugin_throughput_flow_chart(
 
     let datasets = vec![
         Dataset::default()
-            .name(format!("Input: {:.3} e/s", input_throughput))
+            .name(format!("Input: {} e/s", input_throughput.format_number()))
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Blue))
             .data(&input_throughput_data),
         Dataset::default()
-            .name(format!("Filter: {:.3} e/s", filter_throughput))
+            .name(format!("Filter: {} e/s", filter_throughput.format_number()))
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Yellow))
             .data(&filter_throughput_data),
         Dataset::default()
-            .name(format!("Output: {:.3} e/s", output_throughput))
+            .name(format!("Output: {} e/s", output_throughput.format_number()))
             .marker(symbols::Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(Color::Magenta))
@@ -115,6 +116,7 @@ pub(crate) fn draw_flow_metric_chart(
     label_suffix: Option<&str>,
     state: &TimestampChartState<FlowMetricDataPoint>,
     area: Rect,
+    human_format: bool,
 ) {
     let metric_data: Vec<(f64, f64)> = state
         .data_points
@@ -123,11 +125,16 @@ pub(crate) fn draw_flow_metric_chart(
         .collect();
 
     let current_value = state.data_points.front().map(|p| p.value).unwrap_or(0.0);
+    let formatted_current_value = if human_format {
+        current_value.format_number()
+    } else {
+        current_value.strip_number_decimals(3)
+    };
 
     let datasets = vec![Dataset::default()
         .name(format!(
-            "Current: {:.3} {}",
-            current_value,
+            "Current: {} {}",
+            formatted_current_value,
             label_suffix.unwrap_or("")
         ))
         .marker(symbols::Marker::Braille)

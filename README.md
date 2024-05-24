@@ -39,8 +39,8 @@ cargo build --release
 
 ## Usage
 
-**The Logstash's [monitoring API](https://www.elastic.co/guide/en/logstash/current/monitoring-logstash.html) must be enabled
-and accessible from the client machine.**
+The Logstash's [monitoring API](https://www.elastic.co/guide/en/logstash/current/monitoring-logstash.html) must be enabled
+and accessible from the client machine, unless the data is being read from a Logstash diagnostic path.
 
 ```shell
 $ ./tuistash --help
@@ -55,12 +55,13 @@ Commands:
   help  Print this message or the help of the given subcommand(s)
 
 Options:
-      --host <HOST>            [default: http://localhost:9600]
-      --username <USERNAME>    
-      --password <PASSWORD>    
-      --skip-tls-verification  
-  -h, --help                   Print help
-  -V, --version                Print version
+      --host <HOST>                        [default: http://localhost:9600]
+      --username <USERNAME>                
+      --password <PASSWORD>                
+      --skip-tls-verification              
+  -p, --diagnostic-path <DIAGNOSTIC_PATH>  Read the data from a Logstash diagnostic path
+  -h, --help                               Print help
+  -V, --version                            Print version
 
 ```
 

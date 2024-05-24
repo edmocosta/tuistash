@@ -104,6 +104,7 @@ fn draw_node_charts(f: &mut Frame, app: &mut App, area: Rect) {
         None,
         &app.node_state.chart_flow_queue_backpressure,
         flow_chart_chunks[2],
+        false,
     );
 
     let node_chart_chunks = Layout::default()

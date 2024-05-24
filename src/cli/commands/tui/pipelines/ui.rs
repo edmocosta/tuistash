@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::vec;
 
@@ -8,6 +9,7 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
 use ratatui::Frame;
+use serde_json::Value;
 
 use crate::api::node::Vertex;
 use crate::api::stats::PipelineStats;
@@ -90,7 +92,7 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn draw_selected_pipeline_section(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
-        .constraints(vec![Constraint::Length(3), Constraint::Percentage(82)])
+        .constraints(vec![Constraint::Length(3), Constraint::Percentage(97)])
         .direction(Direction::Vertical)
         .split(area);
     {
@@ -155,8 +157,8 @@ fn draw_selected_pipeline_vertices(f: &mut Frame, app: &mut App, area: Rect) {
                 Constraint::Percentage(49), // Name
                 Constraint::Percentage(8),  // Kind
                 Constraint::Percentage(11), // In
-                Constraint::Percentage(11), // Out
-                Constraint::Percentage(21), // Duration
+                Constraint::Percentage(15), // Out
+                Constraint::Percentage(18), // Duration
             ]);
 
         f.render_stateful_widget(
@@ -205,6 +207,7 @@ fn draw_selected_pipeline_flow_charts(f: &mut Frame, app: &mut App, area: Rect) 
                 None,
                 &selected_pipeline_state.queue_backpressure,
                 pipeline_flow_chunks[1],
+                false,
             );
         }
     }
@@ -235,44 +238,30 @@ fn draw_selected_pipeline_vertex_details(
         .selected_pipeline_vertex
         .selected_item()
         .unwrap();
+
     let vertex = pipeline_graph
         .as_ref()
         .unwrap()
         .data
         .get(vertex_id.as_str());
+
     if vertex.is_none() {
         return;
     }
 
+    let unknown_vertex_id = "-".to_string();
     let vertex = vertex.unwrap();
-    let details_text_constraint = if vertex.value.meta.is_some() {
-        Constraint::Length(3)
-    } else {
-        Constraint::Length(2)
-    };
 
-    let chunks = Layout::default()
-        .constraints([details_text_constraint, Constraint::Percentage(96)])
-        .margin(1)
-        .direction(Direction::Vertical)
-        .split(area);
-
-    let vertex_custom_id: &str = if vertex.value.explicit_id {
-        &vertex.value.id
+    let (vertex_id, vertex_name) = if vertex.value.r#type.as_str() != "plugin" {
+        (&unknown_vertex_id, &vertex.value.r#type)
     } else {
-        "-"
-    };
-
-    let vertex_name = if vertex.value.r#type.as_str() != "plugin" {
-        &vertex.value.r#type
-    } else {
-        &vertex.value.config_name
+        (&vertex.value.id, &vertex.value.config_name)
     };
 
     let mut details_text = vec![
         Line::from(vec![
-            Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
-            Span::from(vertex_custom_id),
+            Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
+            Span::from(vertex_id),
         ]),
         Line::from(vec![
             Span::styled("Name: ", Style::default().fg(Color::DarkGray)),
@@ -294,9 +283,18 @@ fn draw_selected_pipeline_vertex_details(
         .alignment(Alignment::Left)
         .wrap(Wrap { trim: true });
 
+    let details_text_len = w.line_count(area.width) as u16;
+    let chunks = Layout::default()
+        .constraints([
+            Constraint::Length(details_text_len),
+            Constraint::Percentage(96),
+        ])
+        .margin(1)
+        .direction(Direction::Vertical)
+        .split(area);
+
     f.render_widget(w, chunks[0]);
 
-    // Charts
     match vertex.value.r#type.as_str() {
         "plugin" => draw_selected_pipeline_plugin_vertex_details(f, app, vertex.value, chunks[1]),
         "queue" => draw_selected_pipeline_queue_vertex_details(f, app, chunks[1]),
@@ -314,6 +312,16 @@ fn draw_selected_pipeline_events_block(f: &mut Frame, app: &mut App, area: Rect)
         if let Some(node_stats) = &app.data.node_stats() {
             let selected_pipeline_stats =
                 node_stats.pipelines.get(&selected_pipeline.name).unwrap();
+
+            let duration_text = format!(
+                "{} ({} ms/e)",
+                selected_pipeline_stats.events.duration_in_millis,
+                selected_pipeline_stats
+                    .events
+                    .duration_in_millis
+                    .format_duration_per_event(selected_pipeline_stats.events.out as u64)
+                    .trim()
+            );
 
             events_text = Line::from(vec![
                 Span::styled("In: ", Style::default().fg(Color::DarkGray)),
@@ -336,12 +344,14 @@ fn draw_selected_pipeline_events_block(f: &mut Frame, app: &mut App, area: Rect)
                         .format_duration_per_event(selected_pipeline_stats.events.r#in as u64),
                 ),
                 Span::styled(" | ", Style::default().fg(Color::Yellow)),
-                Span::styled("Duration (ms/e): ", Style::default().fg(Color::DarkGray)),
+                Span::styled("Duration (ms): ", Style::default().fg(Color::DarkGray)),
+                Span::from(duration_text),
+                Span::styled(" | ", Style::default().fg(Color::Yellow)),
+                Span::styled("Workers: ", Style::default().fg(Color::DarkGray)),
                 Span::from(
-                    selected_pipeline_stats
-                        .events
-                        .duration_in_millis
-                        .format_duration_per_event(selected_pipeline_stats.events.out as u64),
+                    get_pipeline_workers(app, &selected_pipeline.name)
+                        .map(|p| p.to_string())
+                        .unwrap_or("-".to_string()),
                 ),
             ]);
         } else {
@@ -361,11 +371,23 @@ fn draw_selected_pipeline_events_block(f: &mut Frame, app: &mut App, area: Rect)
     f.render_widget(info_paragraph, area);
 }
 
+fn get_pipeline_workers(app: &App, pipeline_name: &str) -> Option<i64> {
+    if let Some(node_info) = app.data.node_info() {
+        if let Some(pipelines) = &node_info.pipelines {
+            return pipelines
+                .get(pipeline_name)
+                .map(|p| p.workers)
+                .or(Some(node_info.node.pipeline.workers));
+        }
+    }
+    None
+}
+
 fn create_pipeline_vertex_if_row(vertex: &Vertex, ident_spaces: String) -> Row {
     let if_text = Line::from(vec![
         Span::raw(ident_spaces),
-        Span::styled("if ", Style::default().fg(Color::DarkGray)),
-        Span::styled(&vertex.condition, Style::default().fg(Color::Gray)),
+        Span::styled("if ", Style::default().fg(Color::Red)),
+        Span::styled(&vertex.condition, Style::default().fg(Color::DarkGray)),
     ]);
 
     Row::new(vec![Cell::from(if_text)])
@@ -375,13 +397,39 @@ fn create_pipeline_vertex_queue_row(
     ident_spaces: String,
     pipeline_stats: Option<&PipelineStats>,
 ) -> Row {
-    let (queue_type, events, push_duration_millis) = match pipeline_stats {
-        None => ("-", 0, 0),
-        Some(stats) => (
-            stats.queue.r#type.as_str(),
-            stats.queue.events,
-            stats.events.queue_push_duration_in_millis,
-        ),
+    let (queue_type, events_in, events_out, queue_push_duration, backpressure) =
+        match pipeline_stats {
+            None => ("-", 0, 0, 0, None),
+            Some(stats) => (
+                stats.queue.r#type.as_str(),
+                stats.events.r#in,
+                stats.events.r#in - stats.queue.events,
+                stats.events.queue_push_duration_in_millis,
+                Some(&stats.flow.queue_backpressure),
+            ),
+        };
+
+    let duration_without_backpressure =
+        Span::raw(queue_push_duration.format_duration_per_event(events_in as u64));
+    let duration_spans = if let Some(backpressure_metric) = backpressure {
+        if backpressure_metric.current >= 0.01 {
+            vec![
+                Span::raw(format!(
+                    "{} ",
+                    queue_push_duration.format_duration_per_event(events_in as u64)
+                )),
+                Span::styled("BP(", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    backpressure_metric.current.strip_number_decimals(2),
+                    Style::default().fg(Color::Red),
+                ),
+                Span::styled(")", Style::default().fg(Color::DarkGray)),
+            ]
+        } else {
+            vec![duration_without_backpressure]
+        }
+    } else {
+        vec![duration_without_backpressure]
     };
 
     let cells = vec![
@@ -389,12 +437,10 @@ fn create_pipeline_vertex_queue_row(
             format!("{}{}", ident_spaces, "queue"),
             Style::default().fg(Color::Cyan),
         )), // Name
-        Cell::from(Text::raw(queue_type)),             // Kind
-        Cell::from(Text::raw(events.format_number())), // Events in
-        Cell::from(Text::raw("-")),                    // Events out
-        Cell::from(Text::raw(
-            push_duration_millis.format_duration_per_event(events as u64),
-        )), // Duration
+        Cell::from(Text::raw(queue_type)),                 // Kind
+        Cell::from(Text::raw(events_in.format_number())),  // Events in
+        Cell::from(Text::raw(events_out.format_number())), // Events out
+        Cell::from(Line::from(duration_spans)),            // Duration
     ];
 
     Row::new(cells)
@@ -426,20 +472,102 @@ fn create_pipeline_vertex_plugin_row<'a>(
     ];
 
     if let Some(stats) = pipeline_stats {
-        if let Some(events) = stats.vertices.get(vertex.id.as_str()) {
-            let events_count = if vertex.plugin_type == "input" {
-                events.events_out
+        if let Some(vertex_stats) = stats.vertices.get(vertex.id.as_str()) {
+            let is_input_plugin = vertex.plugin_type == "input";
+            let vertex_events_in = if is_input_plugin {
+                vertex_stats.events_out
             } else {
-                events.events_in
+                vertex_stats.events_in
             };
 
-            cells.push(Cell::from(Text::from(events.events_in.format_number())));
-            cells.push(Cell::from(Text::from(events.events_out.format_number())));
-            cells.push(Cell::from(Text::from(
-                events
-                    .duration_in_millis
-                    .format_duration_per_event(events_count as u64),
-            )));
+            if is_input_plugin {
+                let mut empty_events_in = true;
+                if let Some(plugin) = stats.plugins.get(&vertex.id) {
+                    if let Some(plugin_flow) = &plugin.flow {
+                        if let Some(plugin_throughput) = &plugin_flow.throughput {
+                            empty_events_in = false;
+                            cells.push(Cell::from(Line::from(vec![Span::styled(
+                                format!("{} e/s", plugin_throughput.current.format_number().trim()),
+                                Style::default().fg(Color::Blue),
+                            )])));
+                        }
+                    }
+                }
+                if empty_events_in {
+                    cells.push(Cell::from(Text::from("-")));
+                }
+            } else {
+                cells.push(Cell::from(Text::from(vertex_events_in.format_number())));
+            }
+
+            // Drop percentage
+            let events_in_out_diff = vertex_stats.events_out - vertex_events_in;
+            match events_in_out_diff.cmp(&0) {
+                Ordering::Less => {
+                    let drop_percentage = 100.00
+                        - ((vertex_stats.events_out as f64 / vertex_events_in as f64) * 100.0);
+                    let drop_percentage_text = if drop_percentage > 0.01 {
+                        format!(" {}% ↓", drop_percentage.strip_number_decimals(2))
+                    } else {
+                        "".to_string()
+                    };
+
+                    cells.push(Cell::from(Line::from(vec![
+                        Span::raw(vertex_stats.events_out.format_number()),
+                        Span::styled(drop_percentage_text, Style::default().fg(Color::Yellow)),
+                    ])));
+                }
+                Ordering::Equal | Ordering::Greater => {
+                    cells.push(Cell::from(Text::from(
+                        vertex_stats.events_out.format_number(),
+                    )));
+                }
+            }
+
+            // Duration
+            let (duration_in_millis, total_duration_in_millis) = if is_input_plugin {
+                (
+                    vertex_stats.queue_push_duration_in_millis,
+                    stats.events.queue_push_duration_in_millis,
+                )
+            } else {
+                (
+                    vertex_stats.duration_in_millis,
+                    stats.events.duration_in_millis,
+                )
+            };
+
+            let mut duration_spans = vec![Span::raw(
+                duration_in_millis.format_duration_per_event(vertex_events_in as u64),
+            )];
+
+            if !is_input_plugin {
+                let mut duration_percentage =
+                    (duration_in_millis as f64 / total_duration_in_millis as f64) * 100.0;
+                if duration_percentage.is_nan() || duration_percentage.is_infinite() {
+                    duration_percentage = 0.0
+                }
+
+                if duration_percentage >= 0.01 || (duration_in_millis > 0 && vertex_events_in > 0) {
+                    let avg_plugins_percentage = stats
+                        .plugins
+                        .avg_duration_in_millis_percentage(total_duration_in_millis);
+
+                    let duration_percentage_color: Color =
+                        if (duration_percentage - 10.0) > avg_plugins_percentage {
+                            Color::Yellow
+                        } else {
+                            Color::DarkGray
+                        };
+
+                    duration_spans.push(Span::styled(
+                        format!(" {}%", duration_percentage.strip_number_decimals(2)),
+                        Style::default().fg(duration_percentage_color),
+                    ));
+                }
+            }
+
+            cells.push(Cell::from(Line::from(duration_spans)));
         }
     }
 
@@ -449,7 +577,7 @@ fn create_pipeline_vertex_plugin_row<'a>(
 fn create_pipeline_vertex_else_row<'a>(ident_spaces: &str) -> Row<'a> {
     let else_text: Line = Line::from(vec![
         Span::raw(ident_spaces[1..].to_string()),
-        Span::styled("else", Style::default().fg(Color::DarkGray)),
+        Span::styled("else", Style::default().fg(Color::Red)),
     ]);
 
     Row::new(vec![Cell::from(else_text)])
@@ -556,7 +684,7 @@ fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: R
     let node_stats = app.data.node_stats().unwrap();
 
     let chunks = Layout::default()
-        .constraints(vec![Constraint::Length(3), Constraint::Percentage(97)])
+        .constraints(vec![Constraint::Length(2), Constraint::Percentage(98)])
         .direction(Direction::Vertical)
         .split(area);
 
@@ -570,19 +698,13 @@ fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: R
         Line::from(vec![
             Span::styled("Capacity: ", Style::default().fg(Color::DarkGray)),
             Span::from(format!(
-                "Size: {}, Max: {}",
+                "Size: {}, Max: {}, Free: {}",
                 format_size_i(pipeline_stats.queue.capacity.queue_size_in_bytes, DECIMAL),
                 format_size_i(
                     pipeline_stats.queue.capacity.max_queue_size_in_bytes,
                     DECIMAL,
-                )
-            )),
-        ]),
-        Line::from(vec![
-            Span::styled("Free space: ", Style::default().fg(Color::DarkGray)),
-            Span::from(format_size_i(
-                pipeline_stats.queue.data.free_space_in_bytes,
-                DECIMAL,
+                ),
+                format_size_i(pipeline_stats.queue.data.free_space_in_bytes, DECIMAL,)
             )),
         ]),
         Line::from(vec![
@@ -599,7 +721,11 @@ fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: R
 
     // Charts
     let chart_chunks = Layout::default()
-        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints(vec![
+            Constraint::Percentage(33),
+            Constraint::Percentage(33),
+            Constraint::Percentage(33),
+        ])
         .direction(Direction::Vertical)
         .split(chunks[1]);
 
@@ -608,6 +734,17 @@ fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: R
         .pipeline_flows_chart_state(&selected_pipeline.name)
         .map(|p| &p.pipeline)
     {
+        if !selected_pipeline_state.queue_backpressure.is_empty() {
+            draw_flow_metric_chart(
+                f,
+                "Backpressure",
+                None,
+                &selected_pipeline_state.queue_backpressure,
+                chart_chunks[0],
+                false,
+            );
+        }
+
         if !selected_pipeline_state
             .queue_persisted_growth_bytes
             .is_empty()
@@ -617,7 +754,8 @@ fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: R
                 "Bytes Growth",
                 Some("bytes"),
                 &selected_pipeline_state.queue_persisted_growth_bytes,
-                chart_chunks[0],
+                chart_chunks[1],
+                false,
             );
         }
 
@@ -630,7 +768,8 @@ fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: R
                 "Events Growth",
                 Some("events"),
                 &selected_pipeline_state.queue_persisted_growth_events,
-                chart_chunks[1],
+                chart_chunks[2],
+                false,
             );
         }
     }
@@ -643,39 +782,91 @@ fn draw_selected_pipeline_plugin_vertex_details(
     area: Rect,
 ) {
     let selected_pipeline = app.pipelines_state.selected_pipeline_name();
-    if selected_pipeline.is_none() {
-        return;
-    }
-
     let selected_vertex = app.pipelines_state.selected_pipeline_vertex();
-    if selected_vertex.is_none() {
+
+    if selected_pipeline.is_none() || selected_vertex.is_none() {
         return;
     }
 
-    let state = app
-        .shared_state
-        .pipeline_plugin_flows_chart_state(selected_pipeline.unwrap(), selected_vertex.unwrap());
+    let node_stats = app.data.node_stats();
+    if node_stats.is_none() {
+        return;
+    }
 
-    let throughput_state = state.map(|p| &p.throughput);
-    let worker_utilization_state = state.map(|p| &p.worker_utilization);
-    let worker_millis_per_event_state = state.map(|p| &p.worker_millis_per_event);
+    let pipeline_stats = node_stats
+        .unwrap()
+        .pipelines
+        .get(selected_pipeline.unwrap());
+    if pipeline_stats.is_none() {
+        return;
+    }
 
-    let is_input_plugin = vertex.plugin_type == "input";
-    let constraints = if is_input_plugin {
+    let (custom_details, constraints) = if let Some(p) =
+        get_selected_pipeline_plugin_vertex_custom_details(vertex, pipeline_stats.unwrap())
+    {
+        let custom_details_len = p.line_count(area.width);
+        (
+            Some(p),
+            vec![
+                Constraint::Length(custom_details_len as u16),
+                Constraint::Percentage(100),
+            ],
+        )
+    } else {
+        (None, vec![Constraint::Percentage(100)])
+    };
+
+    let chunks = Layout::default()
+        .constraints(constraints)
+        .direction(Direction::Vertical)
+        .split(area);
+
+    if let Some(custom_details) = &custom_details {
+        f.render_widget(custom_details, chunks[0]);
+    }
+
+    // Charts
+    draw_selected_pipeline_plugin_vertex_charts(
+        f,
+        app,
+        vertex,
+        selected_pipeline.unwrap(),
+        selected_vertex.unwrap(),
+        chunks[chunks.len() - 1],
+    );
+}
+
+fn draw_selected_pipeline_plugin_vertex_charts(
+    f: &mut Frame,
+    app: &App,
+    vertex: &Vertex,
+    selected_pipeline: &String,
+    selected_vertex: &String,
+    area: Rect,
+) {
+    let constraints = if vertex.plugin_type == "input" {
         vec![Constraint::Percentage(100)]
     } else {
         vec![Constraint::Percentage(50), Constraint::Percentage(50)]
     };
 
-    let chart_chunks = Layout::default()
+    let chunks = Layout::default()
         .constraints(constraints)
         .direction(Direction::Vertical)
         .split(area);
 
-    if is_input_plugin {
+    let flow_state = app
+        .shared_state
+        .pipeline_plugin_flows_chart_state(selected_pipeline, selected_vertex);
+
+    let throughput_state = flow_state.map(|p| &p.throughput);
+    let worker_utilization_state = flow_state.map(|p| &p.worker_utilization);
+    let worker_millis_per_event_state = flow_state.map(|p| &p.worker_millis_per_event);
+
+    if vertex.plugin_type == "input" {
         if let Some(throughput) = throughput_state {
             if !throughput.is_empty() {
-                draw_flow_metric_chart(f, "Throughput", Some("e/s"), throughput, chart_chunks[0]);
+                draw_flow_metric_chart(f, "Throughput", Some("e/s"), throughput, chunks[0], true);
             }
         }
     } else {
@@ -686,7 +877,8 @@ fn draw_selected_pipeline_plugin_vertex_details(
                     "Worker Utilization",
                     None,
                     worker_utilization_state,
-                    chart_chunks[0],
+                    chunks[0],
+                    false,
                 );
             }
         }
@@ -698,9 +890,87 @@ fn draw_selected_pipeline_plugin_vertex_details(
                     "Worker Millis Per Event",
                     None,
                     worker_millis_per_event_state,
-                    chart_chunks[1],
+                    chunks[1],
+                    false,
                 );
             }
         }
     }
+}
+
+fn get_selected_pipeline_plugin_vertex_custom_details<'a>(
+    vertex: &'a Vertex,
+    stats: &'a PipelineStats,
+) -> Option<Paragraph<'a>> {
+    let mut custom_fields = vec![];
+
+    // elasticsearch {}
+    if vertex.config_name == "elasticsearch" && vertex.plugin_type == "output" {
+        if let Some(plugin) = stats.plugins.outputs.get(&vertex.id) {
+            let int_value_mapper: fn(&Value) -> i64 = |p| p.as_i64().unwrap_or(0);
+
+            if plugin.other.contains_key("documents") {
+                let successes = plugin.get_other("documents.successes", int_value_mapper, 0);
+                let failures =
+                    plugin.get_other("documents.non_retryable_failures", int_value_mapper, 0);
+                let dlq_routed = plugin.get_other("documents.dlq_routed", int_value_mapper, 0);
+
+                custom_fields.push(Line::from(vec![
+                    Span::styled("Documents: ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(format!(
+                        "OK: {}, Errors: {}, DLQ: {}",
+                        successes, failures, dlq_routed
+                    )),
+                ]));
+            }
+
+            if plugin.other.contains_key("bulk_requests") {
+                let successes = plugin.get_other("bulk_requests.successes", int_value_mapper, 0);
+                let failures = plugin.get_other("bulk_requests.with_errors", int_value_mapper, 0);
+
+                custom_fields.push(Line::from(vec![
+                    Span::styled("Bulk Req.: ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(format!("OK: {}, Errors: {}", successes, failures)),
+                ]));
+            }
+        }
+    }
+
+    // pipeline {}
+    if vertex.config_name == "pipeline" {
+        if vertex.plugin_type == "input" {
+            if let Some(plugin) = stats.plugins.inputs.get(&vertex.id) {
+                if let Some(address) = plugin.get_other("address", |v| v.as_str(), None) {
+                    custom_fields.push(Line::from(vec![
+                        Span::styled("Address: ", Style::default().fg(Color::DarkGray)),
+                        Span::raw(address),
+                    ]));
+                }
+            }
+        }
+
+        if vertex.plugin_type == "output" {
+            if let Some(plugin) = stats.plugins.outputs.get(&vertex.id) {
+                if let Some(send_to) = plugin.get_other("send_to", |v| v.as_array(), None) {
+                    let addresses: Vec<&str> =
+                        send_to.iter().map(|v| v.as_str().unwrap_or("-")).collect();
+
+                    custom_fields.push(Line::from(vec![
+                        Span::styled("Send to: ", Style::default().fg(Color::DarkGray)),
+                        Span::raw(addresses.join(", ")),
+                    ]));
+                }
+            }
+        }
+    }
+
+    if custom_fields.is_empty() {
+        return None;
+    }
+
+    Some(
+        Paragraph::new(custom_fields)
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: true }),
+    )
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::vec;
 
-use ratatui::layout::Alignment;
+use ratatui::layout::{Alignment, Flex};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -37,6 +37,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     f.render_widget(header_block, chunks[0]);
 
     let title_chunks = Layout::default()
+        .flex(Flex::Legacy)
         .constraints(
             [
                 Constraint::Length(28),
@@ -104,19 +105,20 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         Span::styled("Connected", Style::default().fg(Color::Green))
     };
 
-    let status_text = Line::from(vec![
+    let mut status_text_spans = vec![
         conn_status_span,
         Span::styled(" @ ", Style::default().fg(Color::Gray)),
         Span::from(app.host),
-        Span::styled(
-            format!(" | Sampling every {}s", app.refresh_interval.as_secs()),
-            Style::default().fg(Color::Gray),
-        ),
-    ]);
+    ];
 
-    let w = Paragraph::new(status_text)
-        .alignment(Alignment::Right)
-        .wrap(Wrap { trim: true });
+    if let Some(interval) = app.sampling_interval {
+        status_text_spans.push(Span::styled(
+            format!(" | Sampling every {}s", interval.as_secs()),
+            Style::default().fg(Color::Gray),
+        ));
+    }
+
+    let w = Paragraph::new(Line::from(status_text_spans)).alignment(Alignment::Right);
 
     f.render_widget(w, title_chunks[2]);
 

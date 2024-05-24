@@ -21,6 +21,10 @@ pub struct Cli {
 
     #[arg(long, default_value_t = false, global = true)]
     pub skip_tls_verification: bool,
+
+    /// Read the data from a Logstash diagnostic path
+    #[arg(long, short = 'p', global = false)]
+    pub diagnostic_path: Option<String>,
 }
 
 pub fn build_cli() -> Cli {
