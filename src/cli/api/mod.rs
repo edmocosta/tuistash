@@ -48,7 +48,7 @@ impl<'a> Client<'a> {
     ) -> Result<Self, AnyError> {
         let agent: Agent = if skip_tls_verification {
             let tls_config = rustls::ClientConfig::builder()
-                .with_safe_defaults()
+                .dangerous()
                 .with_custom_certificate_verifier(SkipServerVerification::new())
                 .with_no_client_auth();
 
