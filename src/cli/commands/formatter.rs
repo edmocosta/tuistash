@@ -27,7 +27,10 @@ impl DurationFormatter for u64 {
         }
 
         let duration = *self as f64 / events_count as f64;
-        human_format::Formatter::new().format(duration)
+        human_format::Formatter::new()
+            .format(duration)
+            .trim()
+            .to_string()
     }
 }
 
@@ -37,6 +40,8 @@ pub trait NumberFormatter {
     }
 
     fn format_number_with_decimals(&self, decimals: usize) -> String;
+
+    fn strip_number_decimals(&self, decimals: usize) -> String;
 }
 
 impl NumberFormatter for i64 {
@@ -53,10 +58,25 @@ impl NumberFormatter for i64 {
                 .format(*self as f64),
         }
     }
+
+    fn strip_number_decimals(&self, _decimals: usize) -> String {
+        self.to_string()
+    }
 }
 
 impl NumberFormatter for f64 {
     fn format_number_with_decimals(&self, decimals: usize) -> String {
+        match self {
+            &f64::INFINITY => "Inf ".into(),
+            &f64::NEG_INFINITY => "-Inf ".into(),
+            0.0 => "0".into(),
+            _ => human_format::Formatter::new()
+                .with_decimals(decimals)
+                .format(*self),
+        }
+    }
+
+    fn strip_number_decimals(&self, decimals: usize) -> String {
         format!("{:.1$}", self, decimals)
     }
 }

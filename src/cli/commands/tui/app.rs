@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::api::node::NodeInfo;
 use crate::api::stats::NodeStats;
-use crate::api::Client;
+use crate::commands::tui::data_decorator;
 use crate::commands::tui::data_fetcher::DataFetcher;
 use crate::commands::tui::events::EventsListener;
 use crate::commands::tui::flows::state::FlowsState;
@@ -17,13 +17,13 @@ use crate::errors::AnyError;
 pub(crate) struct AppData<'a> {
     errored: bool,
     last_error_message: Option<String>,
-    data_fetcher: DataFetcher<'a>,
+    data_fetcher: &'a dyn DataFetcher<'a>,
     node_info: Option<NodeInfo>,
     node_stats: Option<NodeStats>,
 }
 
 impl<'a> AppData<'a> {
-    fn new(data_fetcher: DataFetcher<'a>) -> Self {
+    fn new(data_fetcher: &'a impl DataFetcher<'a>) -> Self {
         AppData {
             errored: false,
             last_error_message: None,
@@ -65,6 +65,11 @@ impl<'a> AppData<'a> {
             }
         }
 
+        data_decorator::decorate(
+            self.node_info.as_mut().unwrap(),
+            self.node_stats.as_mut().unwrap(),
+        );
+
         self.errored = false;
         self.last_error_message = None;
 
@@ -99,7 +104,7 @@ pub(crate) struct App<'a> {
     pub flows_state: FlowsState,
     pub data: AppData<'a>,
     pub host: &'a str,
-    pub refresh_interval: Duration,
+    pub sampling_interval: Option<Duration>,
 }
 
 impl<'a> App<'a> {
@@ -107,17 +112,22 @@ impl<'a> App<'a> {
     pub const TAB_FLOWS: usize = 1;
     pub const TAB_NODE: usize = 2;
 
-    pub fn new(title: &'a str, api: &'a Client, refresh_interval: Duration) -> App<'a> {
+    pub fn new(
+        title: &'a str,
+        fetcher: &'a impl DataFetcher<'a>,
+        host: &'a str,
+        sampling_interval: Option<Duration>,
+    ) -> App<'a> {
         App {
             title,
-            refresh_interval,
+            sampling_interval,
             show_help: false,
             should_quit: false,
             tabs: TabsState::new(),
             pipelines_state: PipelinesState::new(),
             node_state: NodeState::new(),
-            data: AppData::new(DataFetcher::new(api)),
-            host: api.base_url(),
+            data: AppData::new(fetcher),
+            host,
             shared_state: SharedState::new(),
             flows_state: FlowsState::new(),
         }

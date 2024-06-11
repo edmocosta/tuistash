@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 use serde::{Deserialize, Deserializer};
+use serde_json::{Map, Value};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -24,6 +25,7 @@ pub struct NodeStatsVertex {
     pub events_out: i64,
     pub events_in: i64,
     pub duration_in_millis: u64,
+    pub queue_push_duration_in_millis: u64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -185,6 +187,7 @@ pub struct PipelineStats {
     pub queue: Queue,
     #[serde(with = "vertices")]
     pub vertices: HashMap<String, NodeStatsVertex>,
+    pub ephemeral_id: Option<String>,
 }
 
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
@@ -197,10 +200,12 @@ where
 }
 
 mod vertices {
-    use super::NodeStatsVertex;
+    use std::collections::HashMap;
+
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
-    use std::collections::HashMap;
+
+    use super::NodeStatsVertex;
 
     pub fn serialize<S>(
         map: &HashMap<String, NodeStatsVertex>,
@@ -218,8 +223,10 @@ mod vertices {
     where
         D: Deserializer<'de>,
     {
-        let mut map = HashMap::new();
-        for item in Vec::<NodeStatsVertex>::deserialize(deserializer)? {
+        let vertices = Vec::<NodeStatsVertex>::deserialize(deserializer)?;
+        let mut map = HashMap::with_capacity(vertices.len());
+
+        for item in vertices {
             map.insert(item.id.to_string(), item);
         }
 
@@ -300,13 +307,28 @@ impl Plugins {
 
         map
     }
+
+    pub fn avg_duration_in_millis_percentage(&self, pipeline_duration_in_millis: u64) -> f64 {
+        let all_plugins = self.all();
+        let duration_in_millis_sum: f64 = all_plugins
+            .values()
+            .map(|plugin| {
+                (plugin.events.duration_in_millis as f64 / pipeline_duration_in_millis as f64)
+                    * 100.0
+            })
+            .sum();
+
+        duration_in_millis_sum / (all_plugins.len() as f64)
+    }
 }
 
 mod plugins {
-    use crate::api::stats::Plugin;
+    use std::collections::HashMap;
+
     use serde::de::{Deserialize, Deserializer};
     use serde::ser::Serializer;
-    use std::collections::HashMap;
+
+    use crate::api::stats::Plugin;
 
     pub fn serialize<S>(map: &HashMap<String, Plugin>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -332,7 +354,35 @@ mod plugins {
 #[serde(default)]
 pub struct Plugin {
     pub id: String,
+    pub name: Option<String>,
     pub flow: Option<PluginFlow>,
+    pub events: Events,
+    #[serde(flatten)]
+    pub other: Map<String, Value>,
+}
+
+impl Plugin {
+    pub fn get_other<'a, U>(&'a self, field: &str, mapper: fn(&'a Value) -> U, default: U) -> U {
+        let mut split: Vec<&str> = field.split('.').rev().collect();
+        let mut current: &Map<String, Value> = &self.other;
+
+        while let Some(path) = split.pop() {
+            if let Some(value) = current.get(path) {
+                if split.is_empty() {
+                    return mapper(value);
+                }
+                if let Some(map_value) = value.as_object() {
+                    current = map_value;
+                } else {
+                    return default;
+                }
+            } else {
+                return default;
+            }
+        }
+
+        default
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

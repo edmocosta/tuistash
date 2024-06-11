@@ -1,3 +1,10 @@
+## 0.3.0
+ - Bumped a few dependencies.
+ - Added a command option (`diagnostic-path`) to poll the data from a Logstash diagnostic path.
+ - Improved compatibility with older Logstash versions (7.x), which graph API is not supported.
+ - The pipeline components view now shows the plugin's pipeline usage and the dropped events percentages.
+ - Added a few plugin's extra details on the pipeline view.
+
 ## 0.2.0
 - Added a new `flows` view built on top of the latest Logstash flow metrics.
 - **BREAKING**: Renamed the `view` command to `tui`.

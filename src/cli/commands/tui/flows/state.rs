@@ -192,7 +192,7 @@ pub(crate) struct FlowsState {
     pub(crate) analysis_window_tabs: TabsState,
     pub(crate) show_as_percentage: bool,
     pub(crate) show_lifetime_values: bool,
-    pub(crate) show_selected_plugin: bool,
+    pub(crate) show_selected_pipeline: bool,
     pub(crate) current_focus: usize,
 }
 
@@ -205,7 +205,7 @@ impl FlowsState {
             analysis_window_tabs: TabsState::with_default_index(1),
             show_as_percentage: false,
             show_lifetime_values: false,
-            show_selected_plugin: false,
+            show_selected_pipeline: false,
             current_focus: PIPELINES_LIST,
         }
     }
@@ -236,7 +236,7 @@ impl FlowsState {
     }
 
     fn update_selected_pipeline_tables(&mut self, app_data: &AppData) {
-        if self.show_selected_plugin {
+        if self.show_selected_pipeline {
             if let Some(selected_pipeline) = self.pipelines_flow_table.selected_item() {
                 self.input_plugins_flow_table
                     .update(&selected_pipeline.name, app_data);
@@ -270,7 +270,7 @@ impl EventsListener for FlowsState {
 
     fn on_enter(&mut self, app_data: &AppData) {
         if self.current_focus == PIPELINES_LIST {
-            self.show_selected_plugin = !self.show_selected_plugin;
+            self.show_selected_pipeline = !self.show_selected_pipeline;
             self.update_selected_pipeline_tables(app_data);
         }
     }
@@ -284,7 +284,7 @@ impl EventsListener for FlowsState {
     }
 
     fn on_right(&mut self, _: &AppData) {
-        if self.current_focus == PIPELINES_LIST && self.show_selected_plugin {
+        if self.current_focus == PIPELINES_LIST && self.show_selected_pipeline {
             self.current_focus = PIPELINE_INPUTS_LIST;
             self.input_plugins_flow_table.next();
         }
@@ -338,7 +338,7 @@ impl EventsListener for FlowsState {
 
     fn on_other(&mut self, key_event: KeyEvent, _: &AppData) {
         // Tab navigation
-        if key_event.code == KeyCode::Tab && self.show_selected_plugin {
+        if key_event.code == KeyCode::Tab && self.show_selected_pipeline {
             if self.current_focus == PIPELINES_LIST {
                 self.current_focus = PIPELINE_INPUTS_LIST;
                 self.input_plugins_flow_table.next();

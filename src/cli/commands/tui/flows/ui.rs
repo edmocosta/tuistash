@@ -4,7 +4,7 @@ use std::string::ToString;
 use std::vec;
 
 use crate::api::node::Vertex;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Cell, Row, Table, Tabs};
@@ -52,7 +52,7 @@ fn draw_flow_widgets(f: &mut Frame, app: &mut App, area: Rect) {
 
     draw_analysis_window_options(f, app, chunks[0]);
 
-    let tables_constraints = if app.flows_state.show_selected_plugin {
+    let tables_constraints = if app.flows_state.show_selected_pipeline {
         vec![Constraint::Percentage(30), Constraint::Percentage(70)]
     } else {
         vec![Constraint::Percentage(100)]
@@ -65,7 +65,7 @@ fn draw_flow_widgets(f: &mut Frame, app: &mut App, area: Rect) {
 
     draw_pipelines_table(f, app, tables_chunks[0]);
 
-    if app.flows_state.show_selected_plugin {
+    if app.flows_state.show_selected_pipeline {
         draw_selected_pipeline_widgets(f, app, tables_chunks[1]);
     }
 }
@@ -149,7 +149,7 @@ pub fn create_flow_metric_cell<'a>(
 
         let decimals = 4;
         let mut difference_text = if percentage {
-            difference.format_number_with_decimals(2)
+            difference.strip_number_decimals(2)
         } else {
             difference.format_number_with_decimals(decimals)
         };
@@ -190,7 +190,7 @@ pub fn create_flow_metric_cell<'a>(
 fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
     let show_as_percentage = app.flows_state.show_as_percentage;
     let show_lifetimes = app.flows_state.show_lifetime_values;
-    let hide_flow_cells = app.flows_state.show_selected_plugin;
+    let hide_flow_cells = app.flows_state.show_selected_pipeline;
 
     let rows: Vec<Row> = app
         .flows_state
@@ -271,11 +271,21 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
         .style(TABLE_HEADER_ROW_STYLE)
         .height(1);
 
-    let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
-    let (name_cell_constraint, workers_cell_constraint) = if hide_flow_cells {
-        (Constraint::Percentage(80), Constraint::Percentage(20))
+    let widths: Vec<Constraint> = if hide_flow_cells {
+        vec![
+            Constraint::Percentage(80), // Name
+            Constraint::Percentage(20), // Workers
+        ]
     } else {
-        (Constraint::Percentage(15), Constraint::Percentage(5))
+        vec![
+            Constraint::Percentage(15), // Name
+            Constraint::Percentage(5),  // Workers
+            Constraint::Percentage(13), // Input
+            Constraint::Percentage(13), // Filter
+            Constraint::Percentage(13), // Output
+            Constraint::Percentage(13), // Queue Backpressure
+            Constraint::Percentage(13), // Worker Concurrency
+        ]
     };
 
     let pipelines = Table::new(rows, widths)
@@ -283,16 +293,7 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
         .block(Block::default().borders(Borders::ALL).title("Pipelines"))
         .column_spacing(2)
         .highlight_style(TABLE_SELECTED_ROW_STYLE)
-        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
-        .widths([
-            name_cell_constraint,       // Name
-            workers_cell_constraint,    // Workers
-            Constraint::Percentage(13), // Input
-            Constraint::Percentage(13), // Filter
-            Constraint::Percentage(13), // Output
-            Constraint::Percentage(13), // Queue Backpressure
-            Constraint::Percentage(13), // Worker Concurrency
-        ]);
+        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
     f.render_stateful_widget(
         pipelines,
@@ -321,6 +322,7 @@ fn create_plugin_name_cell<'a>(id: &String, vertex: Option<&&Vertex>) -> Cell<'a
 
 fn draw_selected_pipeline_widgets(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
+        .flex(Flex::Legacy)
         .constraints(vec![Constraint::Percentage(30), Constraint::Percentage(70)])
         .direction(Direction::Vertical)
         .split(area);

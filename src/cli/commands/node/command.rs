@@ -4,7 +4,7 @@ use crate::api::node::NodeInfoType;
 use crate::commands::node::output::OutputFormat;
 use crate::commands::traits::RunnableCommand;
 use crate::config::Config;
-use crate::errors::AnyError;
+use crate::errors::{AnyError, TuiError};
 use crate::output::Output;
 
 #[derive(Args)]
@@ -26,6 +26,13 @@ impl RunnableCommand<NodeArgs> for NodeCommand {
             None => OutputFormat::Default,
             Some(value) => OutputFormat::try_from(value.as_ref())?,
         };
+
+        if config.diagnostic_path.is_some() {
+            return Err(TuiError::from(
+                "The --diagnostic-path argument is not supported by the get command",
+            )
+            .into());
+        }
 
         let info_types = &NodeCommand::parse_info_types(&args.types)?;
         if output_format == OutputFormat::Raw {
