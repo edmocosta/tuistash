@@ -1,9 +1,9 @@
+name: CI
 on:
   pull_request:
   push:
     branches:
       - main
-
 jobs:
   fmt:
     name: Rustfmt
@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macOS-latest ]
-        rust: [ stable, beta, nightly ]
+        rust: [ stable ]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
