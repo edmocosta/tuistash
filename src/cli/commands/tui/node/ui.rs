@@ -25,7 +25,7 @@ pub(crate) fn draw_node_tab(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn draw_node_widgets(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
-        .constraints(vec![Constraint::Length(3), Constraint::Percentage(82)])
+        .constraints(vec![Constraint::Length(3), Constraint::Percentage(90)])
         .direction(Direction::Vertical)
         .split(area);
     {

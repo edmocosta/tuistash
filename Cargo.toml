@@ -7,7 +7,7 @@ documentation = "https://github.com/edmocosta/tuistash"
 keywords = ["logstash", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
 authors = ["Edmo Vamerlatti Costa <edinhow@gmail.com>"]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 
 [dependencies]
@@ -29,7 +29,8 @@ crossterm = { version = "0.27.0", default-features = false, features = ["event-s
 num-format = { version = "0.4", default-features = false, features = ["with-num-bigint"] }
 human_format = { version = "1.1" }
 uuid = { version = "1.4", features = ["v4"] }
-time = { version = "0.3", features = ["default", "formatting", "local-offset"] }
+time = { version = "0.3", features = ["default", "formatting", "local-offset", "parsing"] }
+regex = { version = "1.10.5", features = [] }
 
 [[bin]]
 name = "tuistash"

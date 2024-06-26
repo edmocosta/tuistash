@@ -13,6 +13,7 @@ mod flows;
 mod node;
 mod pipelines;
 mod shared_state;
+mod threads;
 mod ui;
 mod widgets;
 

@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::api::hot_threads::NodeHotThreads;
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::api::node::NodeInfo;
@@ -11,6 +12,7 @@ use crate::commands::tui::flows::state::FlowsState;
 use crate::commands::tui::node::state::NodeState;
 use crate::commands::tui::pipelines::state::PipelinesState;
 use crate::commands::tui::shared_state::SharedState;
+use crate::commands::tui::threads::state::ThreadsState;
 use crate::commands::tui::widgets::TabsState;
 use crate::errors::AnyError;
 
@@ -20,6 +22,7 @@ pub(crate) struct AppData<'a> {
     data_fetcher: &'a dyn DataFetcher<'a>,
     node_info: Option<NodeInfo>,
     node_stats: Option<NodeStats>,
+    hot_threads: Option<NodeHotThreads>,
 }
 
 impl<'a> AppData<'a> {
@@ -30,6 +33,7 @@ impl<'a> AppData<'a> {
             data_fetcher,
             node_stats: None,
             node_info: None,
+            hot_threads: None,
         }
     }
 
@@ -65,6 +69,16 @@ impl<'a> AppData<'a> {
             }
         }
 
+        match self.data_fetcher.fetch_hot_threads() {
+            Ok(hot_threads) => {
+                self.hot_threads = Some(hot_threads);
+            }
+            Err(e) => {
+                self.handle_error(&e);
+                return Err(e);
+            }
+        }
+
         data_decorator::decorate(
             self.node_info.as_mut().unwrap(),
             self.node_stats.as_mut().unwrap(),
@@ -82,6 +96,10 @@ impl<'a> AppData<'a> {
 
     pub(crate) fn node_stats(&self) -> Option<&NodeStats> {
         return self.node_stats.as_ref();
+    }
+
+    pub(crate) fn hot_threads(&self) -> Option<&NodeHotThreads> {
+        return self.hot_threads.as_ref();
     }
 
     pub(crate) fn errored(&self) -> bool {
@@ -102,6 +120,7 @@ pub(crate) struct App<'a> {
     pub node_state: NodeState,
     pub pipelines_state: PipelinesState<'a>,
     pub flows_state: FlowsState,
+    pub threads_state: ThreadsState,
     pub data: AppData<'a>,
     pub host: &'a str,
     pub sampling_interval: Option<Duration>,
@@ -110,7 +129,8 @@ pub(crate) struct App<'a> {
 impl<'a> App<'a> {
     pub const TAB_PIPELINES: usize = 0;
     pub const TAB_FLOWS: usize = 1;
-    pub const TAB_NODE: usize = 2;
+    pub const TAB_THREADS: usize = 2;
+    pub const TAB_NODE: usize = 3;
 
     pub fn new(
         title: &'a str,
@@ -130,6 +150,7 @@ impl<'a> App<'a> {
             host,
             shared_state: SharedState::new(),
             flows_state: FlowsState::new(),
+            threads_state: ThreadsState::new(),
         }
     }
 
@@ -200,6 +221,9 @@ impl<'a> App<'a> {
             "n" => {
                 self.select_tab(Self::TAB_NODE);
             }
+            "t" => {
+                self.select_tab(Self::TAB_THREADS);
+            }
             _ => {}
         }
     }
@@ -225,6 +249,7 @@ impl<'a> App<'a> {
             &mut self.pipelines_state,
             &mut self.flows_state,
             &mut self.node_state,
+            &mut self.threads_state,
         ];
 
         for listener in listeners {
@@ -249,6 +274,7 @@ impl<'a> App<'a> {
             Self::TAB_PIPELINES => Some(&mut self.pipelines_state),
             Self::TAB_NODE => Some(&mut self.node_state),
             Self::TAB_FLOWS => Some(&mut self.flows_state),
+            Self::TAB_THREADS => Some(&mut self.threads_state),
             _ => None,
         };
 
