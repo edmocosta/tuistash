@@ -1,6 +1,6 @@
 # Tuistash
 
-A Terminal User Interface for Logstash.
+A Terminal User Interface (TUI) for monitoring Logstash 🪵
 
 ![demo](docs/img/demo.gif)
 
@@ -15,7 +15,7 @@ brew tap edmocosta/homebrew-tap
 brew install tuistash
 ```
 
-### Manual 
+### Manually
 Download the latest release from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases) or build it from the source:
 
 1 - Install Rust and Cargo (Linux and macOS):
@@ -65,13 +65,28 @@ Options:
 
 ```
 
-### TUI:
+### TUI
 
 ```shell
 ./tuistash
 ```
 
-### GET command:
+```shell
+./tuistash tui --help
+```
+
+```shell
+Logstash TUI
+
+Usage: tuistash tui [OPTIONS]
+
+Options:
+  -i, --interval <INTERVAL>    Refresh interval in seconds [default: 1]
+```
+
+### Other commands
+
+#### GET
 
 ```shell
 ./tuistash get node --help
