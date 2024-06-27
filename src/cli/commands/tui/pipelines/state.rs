@@ -11,7 +11,6 @@ pub const PIPELINE_VERTEX_LIST: usize = 0;
 pub const PIPELINE_VERTEX_VIEW: usize = 1;
 
 pub struct PipelineTableItem {
-    pub id: String,
     pub name: String,
     pub graph: GraphDefinition,
 }
@@ -23,7 +22,6 @@ impl StatefulTable<PipelineTableItem> {
                 let mut new_items = Vec::with_capacity(pipelines.len());
                 for (name, pipeline_info) in pipelines {
                     let new_item = PipelineTableItem {
-                        id: pipeline_info.ephemeral_id.to_string(),
                         name: name.to_string(),
                         graph: pipeline_info.graph.graph.clone(),
                     };

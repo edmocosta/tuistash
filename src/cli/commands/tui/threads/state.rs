@@ -76,7 +76,7 @@ impl StatefulTable<ThreadTableItem> {
                         .reverse()
                 }
             });
-            
+
             let new_selected_index = if let Some(selected) = self.selected_item() {
                 // Not optimal, but should work for now to keep the selected line
                 // selected after an update with order changes.
