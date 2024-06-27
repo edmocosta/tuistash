@@ -12,7 +12,6 @@ pub struct Data<'a, T> {
 
 pub struct VertexEdge<'a> {
     pub vertex_id: &'a str,
-    pub r#type: String,
     pub when: Option<bool>,
 }
 
@@ -51,7 +50,6 @@ impl<'a> PipelineGraph<'a> {
                 .unwrap()
                 .push(VertexEdge {
                     vertex_id: edge.to.as_str(),
-                    r#type: edge.r#type.to_string(),
                     when: edge.when,
                 });
 

@@ -36,7 +36,7 @@ impl<T> StatefulTable<T> {
     pub fn new() -> Self {
         StatefulTable {
             state: TableState::default(),
-            items: vec![],
+            items: Vec::new(),
         }
     }
 
@@ -45,6 +45,10 @@ impl<T> StatefulTable<T> {
             None => None,
             Some(index) => Some(&self.items[index]),
         }
+    }
+
+    pub fn select(&mut self, index: Option<usize>) {
+        self.state.select(index);
     }
 
     pub fn unselect(&mut self) {

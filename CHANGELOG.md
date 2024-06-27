@@ -1,3 +1,8 @@
+## 0.4.0
+ - Introduced a new view `Threads`, which relies on the Logstash's hot-threads API to display the busiest threads and their traces.
+ - Added the `User-Agent` header to requests so the source can be identified.
+ - Minor UI fixes.
+
 ## 0.3.0
  - Bumped a few dependencies.
  - Added a command option (`diagnostic-path`) to poll the data from a Logstash diagnostic path.

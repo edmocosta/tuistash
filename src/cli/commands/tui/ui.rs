@@ -15,6 +15,7 @@ use crate::commands::tui::app::App;
 use crate::commands::tui::flows::ui::{draw_flows_tab, flows_tab_shortcuts_help};
 use crate::commands::tui::node::ui::draw_node_tab;
 use crate::commands::tui::pipelines::ui::{draw_pipelines_tab, pipelines_tab_shortcuts_help};
+use crate::commands::tui::threads::ui::{draw_threads_tab, threads_tab_shortcuts_help};
 
 pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     let constraints = if app.show_help || app.data.last_error_message().is_some() {
@@ -40,7 +41,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         .flex(Flex::Legacy)
         .constraints(
             [
-                Constraint::Length(28),
+                Constraint::Length(37),
                 Constraint::Percentage(20),
                 Constraint::Percentage(50),
             ]
@@ -67,6 +68,13 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         ]),
         Line::from(vec![
             Span::styled(
+                "T",
+                Style::default().add_modifier(Modifier::UNDERLINED | Modifier::BOLD),
+            ),
+            Span::styled("hreads", Style::default().add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::styled(
                 "N",
                 Style::default().add_modifier(Modifier::UNDERLINED | Modifier::BOLD),
             ),
@@ -87,7 +95,6 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
 
     // Help text
     let help_text = Line::from(vec![
-        Span::styled("Press", Style::default().fg(Color::DarkGray)),
         Span::styled(" [H] ", Style::default().fg(Color::Yellow)),
         Span::styled("for help", Style::default().fg(Color::DarkGray)),
     ]);
@@ -127,6 +134,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
             App::TAB_PIPELINES => draw_pipelines_tab(f, app, chunks[1]),
             App::TAB_NODE => draw_node_tab(f, app, chunks[1]),
             App::TAB_FLOWS => draw_flows_tab(f, app, chunks[1]),
+            App::TAB_THREADS => draw_threads_tab(f, app, chunks[1]),
             _ => {}
         };
     }
@@ -137,6 +145,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         let (defaults, shortcuts) = match app.tabs.index {
             App::TAB_PIPELINES => (true, pipelines_tab_shortcuts_help(app)),
             App::TAB_FLOWS => (true, flows_tab_shortcuts_help(app)),
+            App::TAB_THREADS => (true, threads_tab_shortcuts_help(app)),
             _ => (true, Default::default()),
         };
 

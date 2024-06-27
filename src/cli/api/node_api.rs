@@ -1,3 +1,4 @@
+use crate::api::hot_threads::NodeHotThreads;
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
 use crate::api::Client;
@@ -42,6 +43,15 @@ impl Client<'_> {
         let response = self.request("GET", &self.node_request_path("stats"), query)?;
         let node_stats: NodeStats = response.into_json()?;
         Ok(node_stats)
+    }
+
+    pub fn get_hot_threads(
+        &self,
+        query: Option<&[(&str, &str)]>,
+    ) -> Result<NodeHotThreads, AnyError> {
+        let response = self.request("GET", &self.node_request_path("hot_threads"), query)?;
+        let hot_threads: NodeHotThreads = response.into_json()?;
+        Ok(hot_threads)
     }
 
     fn node_info_request_path(&self, types: &[NodeInfoType]) -> String {

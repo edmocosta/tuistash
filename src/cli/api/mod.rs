@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use base64::prelude::BASE64_STANDARD;
 use base64::write::EncoderWriter;
-use ureq::{Agent, Response};
+use ureq::{Agent, AgentBuilder, Response};
 
 use crate::api::tls::SkipServerVerification;
 use crate::errors::AnyError;
 
+pub mod hot_threads;
 pub mod node;
 pub mod node_api;
 pub mod stats;
@@ -46,21 +47,23 @@ impl<'a> Client<'a> {
         password: Option<&'a str>,
         skip_tls_verification: bool,
     ) -> Result<Self, AnyError> {
-        let agent: Agent = if skip_tls_verification {
+        let user_agent = "tuistash";
+
+        let agent_builder: AgentBuilder = if skip_tls_verification {
             let tls_config = rustls::ClientConfig::builder()
                 .dangerous()
                 .with_custom_certificate_verifier(SkipServerVerification::new())
                 .with_no_client_auth();
-
-            ureq::AgentBuilder::new()
+            AgentBuilder::new()
+                .user_agent(user_agent)
                 .tls_config(Arc::new(tls_config))
-                .build()
         } else {
-            ureq::AgentBuilder::new().build()
-        };
+            AgentBuilder::new().user_agent(user_agent)
+        }
+        .user_agent(format!("tuistash/{}", env!("CARGO_PKG_VERSION")).as_str());
 
         Ok(Self {
-            client: agent,
+            client: agent_builder.build(),
             config: ClientConfig {
                 base_url: host.to_string(),
                 username,

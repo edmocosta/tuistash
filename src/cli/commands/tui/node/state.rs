@@ -56,10 +56,8 @@ impl ChartDataPoint for JvmMemNonHeapDataPoint {
 
 pub struct JvmMemHeapDataPoint {
     pub timestamp: i64,
-    pub heap_committed_in_bytes: i64,
     pub heap_max_in_bytes: i64,
     pub heap_used_in_bytes: i64,
-    pub heap_used_percent: i64,
 }
 
 impl ChartDataPoint for JvmMemHeapDataPoint {
@@ -122,10 +120,8 @@ impl NodeState {
     fn update_jvm_charts_states(&mut self, node_stats: &NodeStats) {
         self.chart_jvm_heap_state.push(JvmMemHeapDataPoint {
             timestamp: now_local_unix_timestamp(),
-            heap_committed_in_bytes: node_stats.jvm.mem.heap_committed_in_bytes,
             heap_max_in_bytes: node_stats.jvm.mem.heap_max_in_bytes,
             heap_used_in_bytes: node_stats.jvm.mem.heap_used_in_bytes,
-            heap_used_percent: node_stats.jvm.mem.heap_used_percent,
         });
 
         self.chart_jvm_non_heap_state.push(JvmMemNonHeapDataPoint {
