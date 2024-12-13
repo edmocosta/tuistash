@@ -7,30 +7,25 @@ documentation = "https://github.com/edmocosta/tuistash"
 keywords = ["logstash", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
 authors = ["Edmo Vamerlatti Costa <edinhow@gmail.com>"]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.3.21", features = ["std", "derive", "help", "usage", "suggestions"], default-features = false }
+clap = { version = "4.5.20", features = ["std", "derive", "help", "usage", "suggestions"], default-features = false }
 ureq = { version = "2.9.7", features = ["json", "tls"], default-features = false }
-serde = { version = "1.0", features = ["derive"], default-features = false }
-serde_with = { version = "3.2.0", default-features = false }
-serde_json = { version = "1.0", default-features = false }
-tabled = { version = "0.14.0", features = ["std","default"] }
-colored = { version = "2.1.0", default-features = false }
-json_to_table = { version = "0.5.0", default-features = false }
-base64 = { version = "0.22.0", features = ["std"], default-features = false }
-rustls = { version = "0.22.4", features = ["default", "tls12"], default-features = false }
+serde = { version = "1.0.210", features = ["derive"], default-features = false }
+serde_json = { version = "1.0.128", default-features = false }
+base64 = { version = "0.22.1", features = ["std"], default-features = false }
+rustls = { version = "0.23.14", features = ["default", "tls12"], default-features = false }
 colored_json = { version = "5.0", default-features = false }
 humansize = { version = "2.1", default-features = false }
 humantime = { version = "2.1" }
-ratatui = { version = "0.26.3", features = ["crossterm", "unstable-rendered-line-info"] }
-crossterm = { version = "0.27.0", default-features = false, features = ["event-stream"] }
-num-format = { version = "0.4", default-features = false, features = ["with-num-bigint"] }
+ratatui = { version = "0.28.1", features = ["crossterm", "unstable-rendered-line-info"] }
+crossterm = { version = "0.28.1", default-features = false, features = ["event-stream"] }
 human_format = { version = "1.1" }
-uuid = { version = "1.4", features = ["v4"] }
-time = { version = "0.3", features = ["default", "formatting", "local-offset", "parsing"] }
-regex = { version = "1.10.5", features = [] }
+uuid = { version = "1.10.0", features = ["v4"] }
+time = { version = "0.3.36", features = ["default", "formatting", "local-offset", "parsing"] }
+regex = { version = "1.11.0", features = [] }
 
 [[bin]]
 name = "tuistash"

@@ -1,4 +1,3 @@
-use humansize::ToF64;
 use humansize::{format_size_i, DECIMAL};
 use ratatui::text::Span;
 use std::collections::VecDeque;
@@ -154,12 +153,12 @@ where
 
         let pieces = f64::max(
             self.min_x_value.map(|p| p + 1.0).unwrap_or(1.0),
-            (self.x_axis_bounds[1] - self.x_axis_bounds[0]) / count.to_f64(),
+            (self.x_axis_bounds[1] - self.x_axis_bounds[0]) / (count as f64),
         );
 
         let mut previous: Option<f64> = None;
         for i in 0..(count - 1) {
-            let next = self.x_axis_bounds[0] + (pieces * i.to_f64());
+            let next = self.x_axis_bounds[0] + (pieces * (i as f64));
             if previous.is_some_and(|p| p.signum() != next.signum()) {
                 values.push(0.0);
             }
@@ -177,12 +176,12 @@ where
 
         let pieces = f64::max(
             self.min_y_value.map(|p| p + 1.0).unwrap_or(1.0),
-            (self.y_axis_bounds[1] - self.y_axis_bounds[0]) / count.to_f64(),
+            (self.y_axis_bounds[1] - self.y_axis_bounds[0]) / (count as f64),
         );
 
         let mut previous: Option<f64> = None;
         for i in 0..(count - 1) {
-            let next = self.y_axis_bounds[0] + (pieces * i.to_f64());
+            let next = self.y_axis_bounds[0] + (pieces * (i as f64));
             if previous.is_some_and(|p| p.signum() != next.signum()) {
                 values.push(0.0);
             }

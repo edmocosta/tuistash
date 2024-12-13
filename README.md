@@ -101,7 +101,7 @@ Arguments:
   [TYPES]  Valid values are 'node', 'os', 'jvm', 'pipelines' separated by comma
 
 Options:
-  -o <OUTPUT> Valid values are 'default', 'json', 'table', 'raw'
+  -o <OUTPUT> Valid values are 'json', 'raw'
 ```
 
 Examples:
@@ -111,38 +111,5 @@ Examples:
 ```
 
 ```shell
-  PIPELINES                                                                                                                                    
-  NAME   WORKERS  BATCH_SIZE  BATCH_DELAY  CONFIG_RELOAD_AUTOMATIC  CONFIG_RELOAD_INTERVAL  DLQ_ENABLED  EPHEMERAL_ID                          
-  debug  2        125         50           true                     3000000000              false        454ab3a7-92bb-45c6-bef3-91759e20987d  
-  
-  OS                                                                                                                                           
-  NAME   VERSION           ARCH     AVAILABLE_PROCESSORS                                                                                       
-  Linux  5.15.49-linuxkit  aarch64  2    
-```
-
-```shell
-./tuistash get node jvm -o json
-```
-
-```shell
-{
-  "jvm": {
-    "gc_collectors": [
-      "G1 Young Generation",
-      "G1 Old Generation"
-    ],
-    "mem": {
-      "heap_init_in_bytes": 1073741824,
-      "heap_max_in_bytes": 1073741824,
-      "non_heap_init_in_bytes": 7667712,
-      "non_heap_max_in_bytes": 0
-    },
-    "pid": 1,
-    "start_time_in_millis": 1685344376388,
-    "version": "17.0.6",
-    "vm_name": "OpenJDK 64-Bit Server VM",
-    "vm_vendor": "Eclipse Adoptium",
-    "vm_version": "17.0.6"
-  }
-}
+./tuistash get node jvm -o raw
 ```

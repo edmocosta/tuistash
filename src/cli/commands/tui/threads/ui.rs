@@ -2,7 +2,8 @@ use std::cmp::max;
 use std::collections::HashMap;
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::prelude::{Line, Span, Style, Text};
+use ratatui::prelude::{Line, Span, Style, Stylize, Text};
+
 use ratatui::style::Color;
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table};
 use ratatui::Frame;
@@ -97,9 +98,15 @@ fn draw_selected_thread_traces(f: &mut Frame, app: &mut App, area: Rect) {
         })
         .collect();
 
+    let traces_block_title = if let Some(thread) = app.threads_state.threads_table.selected_item() {
+         thread.name.to_string()
+    } else {
+        "Traces".to_string()
+    };
+
     let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
     let traces = Table::new(rows, widths)
-        .block(Block::default().borders(Borders::ALL).title("Traces"))
+        .block(Block::default().borders(Borders::ALL).title(Span::from(traces_block_title).bold()))
         .column_spacing(2)
         .highlight_style(TABLE_SELECTED_ROW_STYLE)
         .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
