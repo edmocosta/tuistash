@@ -274,7 +274,7 @@ impl Plugins {
             return Some(plugin);
         }
 
-        return self.codecs.get(id);
+        self.codecs.get(id)
     }
 
     pub fn all(&self) -> HashMap<String, &Plugin> {

@@ -61,7 +61,7 @@ impl NodeCommand {
     }
 
     fn parse_info_types(types: &Option<String>) -> Result<Vec<NodeInfoType>, AnyError> {
-        return match types {
+        match types {
             None => Ok(vec![NodeInfoType::All]),
             Some(values) => {
                 let parts = values.trim().split(',');
@@ -72,6 +72,6 @@ impl NodeCommand {
 
                 Ok(result)
             }
-        };
+        }
     }
 }

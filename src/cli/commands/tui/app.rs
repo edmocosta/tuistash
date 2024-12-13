@@ -91,15 +91,15 @@ impl<'a> AppData<'a> {
     }
 
     pub(crate) fn node_info(&self) -> Option<&NodeInfo> {
-        return self.node_info.as_ref();
+        self.node_info.as_ref()
     }
 
     pub(crate) fn node_stats(&self) -> Option<&NodeStats> {
-        return self.node_stats.as_ref();
+        self.node_stats.as_ref()
     }
 
     pub(crate) fn hot_threads(&self) -> Option<&NodeHotThreads> {
-        return self.hot_threads.as_ref();
+        self.hot_threads.as_ref()
     }
 
     pub(crate) fn errored(&self) -> bool {

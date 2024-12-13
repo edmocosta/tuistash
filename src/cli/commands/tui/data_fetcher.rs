@@ -180,7 +180,7 @@ impl PathDataFetcher {
     }
 }
 
-impl<'a> DataFetcher<'a> for PathDataFetcher {
+impl DataFetcher<'_> for PathDataFetcher {
     fn fetch_info(&self) -> Result<NodeInfo, AnyError> {
         let node_with_graphs = Path::new(self.path.as_str()).join(LOGSTASH_NODE_GRAPH_FILE);
         let path = if node_with_graphs.exists() {
@@ -188,7 +188,7 @@ impl<'a> DataFetcher<'a> for PathDataFetcher {
         } else {
             Path::new(self.path.as_str()).join(LOGSTASH_NODE_FILE)
         };
-        
+
         match fs::read_to_string(path) {
             Ok(data) => {
                 let node_info: NodeInfo = serde_json::from_str(data.as_str())?;
@@ -199,7 +199,8 @@ impl<'a> DataFetcher<'a> for PathDataFetcher {
     }
 
     fn fetch_stats(&self) -> Result<NodeStats, AnyError> {
-        let stats_with_vertices = Path::new(self.path.as_str()).join(LOGSTASH_NODE_STATS_VERTICES_FILE);
+        let stats_with_vertices =
+            Path::new(self.path.as_str()).join(LOGSTASH_NODE_STATS_VERTICES_FILE);
         let path = if stats_with_vertices.exists() {
             stats_with_vertices
         } else {

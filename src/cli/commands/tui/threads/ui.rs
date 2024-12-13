@@ -99,14 +99,18 @@ fn draw_selected_thread_traces(f: &mut Frame, app: &mut App, area: Rect) {
         .collect();
 
     let traces_block_title = if let Some(thread) = app.threads_state.threads_table.selected_item() {
-         thread.name.to_string()
+        thread.name.to_string()
     } else {
         "Traces".to_string()
     };
 
     let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
     let traces = Table::new(rows, widths)
-        .block(Block::default().borders(Borders::ALL).title(Span::from(traces_block_title).bold()))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(Span::from(traces_block_title).bold()),
+        )
         .column_spacing(2)
         .highlight_style(TABLE_SELECTED_ROW_STYLE)
         .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
@@ -300,7 +304,7 @@ fn create_thread_states_line<'a>(
 }
 
 fn thread_state_color(state: &str) -> Color {
-    return match state.to_uppercase().as_str() {
+    match state.to_uppercase().as_str() {
         "NEW" => Color::Blue,
         "RUNNABLE" => Color::Green,
         "BLOCKED" => Color::Red,
@@ -308,5 +312,5 @@ fn thread_state_color(state: &str) -> Color {
         "TIMED_WAITING" => Color::Indexed(208),
         "TERMINATED" => Color::Gray,
         _ => Color::Reset,
-    };
+    }
 }

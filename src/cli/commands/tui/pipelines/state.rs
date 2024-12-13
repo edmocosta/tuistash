@@ -74,7 +74,7 @@ pub struct PipelinesState<'a> {
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a> PipelinesState<'a> {
+impl PipelinesState<'_> {
     pub fn new() -> Self {
         PipelinesState {
             current_focus: 0,
@@ -95,7 +95,7 @@ impl<'a> PipelinesState<'a> {
     }
 }
 
-impl<'a> EventsListener for PipelinesState<'a> {
+impl EventsListener for PipelinesState<'_> {
     fn update(&mut self, app_data: &AppData) {
         self.pipelines_table.update(app_data);
 
