@@ -31,7 +31,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .constraints(constraints)
         .direction(Direction::Vertical)
-        .split(f.size());
+        .split(f.area());
 
     let header_block = Block::default().borders(Borders::ALL).title(app.title);
 

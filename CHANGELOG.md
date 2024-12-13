@@ -1,3 +1,9 @@
+## 0.5.0
+ - Added support for vertices and edges files diagnostics.
+ - The thread name is now displayed on the traces details block.
+ - **BREAKING**: Removed the `default` and `table` output options from the `node` command.
+ - Bumped dependencies versions.
+
 ## 0.4.0
  - Introduced a new view `Threads`, which relies on the Logstash's hot-threads API to display the busiest threads and their traces.
  - Added the `User-Agent` header to requests so the source can be identified.

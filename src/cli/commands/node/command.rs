@@ -13,7 +13,7 @@ pub struct NodeArgs {
     #[arg()]
     pub types: Option<String>,
 
-    /// Valid values are 'default', 'json', 'table', 'raw'
+    /// Valid values are 'json', 'raw'
     #[arg(short)]
     pub output: Option<String>,
 }
@@ -23,7 +23,7 @@ pub struct NodeCommand;
 impl RunnableCommand<NodeArgs> for NodeCommand {
     fn run(&self, out: &mut Output, args: &NodeArgs, config: &Config) -> Result<(), AnyError> {
         let output_format = match &args.output {
-            None => OutputFormat::Default,
+            None => OutputFormat::Json,
             Some(value) => OutputFormat::try_from(value.as_ref())?,
         };
 
@@ -61,7 +61,7 @@ impl NodeCommand {
     }
 
     fn parse_info_types(types: &Option<String>) -> Result<Vec<NodeInfoType>, AnyError> {
-        return match types {
+        match types {
             None => Ok(vec![NodeInfoType::All]),
             Some(values) => {
                 let parts = values.trim().split(',');
@@ -72,6 +72,6 @@ impl NodeCommand {
 
                 Ok(result)
             }
-        };
+        }
     }
 }

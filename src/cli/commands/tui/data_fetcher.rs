@@ -53,7 +53,9 @@ pub(crate) struct PathDataFetcher {
 }
 
 const LOGSTASH_NODE_FILE: &str = "logstash_node.json";
+const LOGSTASH_NODE_GRAPH_FILE: &str = "logstash_node_graph.json";
 const LOGSTASH_NODE_STATS_FILE: &str = "logstash_node_stats.json";
+const LOGSTASH_NODE_STATS_VERTICES_FILE: &str = "logstash_node_stats_vertices.json";
 const LOGSTASH_NODE_HOT_THREADS_FILE: &str = "logstash_nodes_hot_threads.json";
 const LOGSTASH_DIAGNOSTIC_FILES: &[&str; 3] = &[
     LOGSTASH_NODE_FILE,
@@ -178,9 +180,15 @@ impl PathDataFetcher {
     }
 }
 
-impl<'a> DataFetcher<'a> for PathDataFetcher {
+impl DataFetcher<'_> for PathDataFetcher {
     fn fetch_info(&self) -> Result<NodeInfo, AnyError> {
-        let path = Path::new(self.path.as_str()).join(LOGSTASH_NODE_FILE);
+        let node_with_graphs = Path::new(self.path.as_str()).join(LOGSTASH_NODE_GRAPH_FILE);
+        let path = if node_with_graphs.exists() {
+            node_with_graphs
+        } else {
+            Path::new(self.path.as_str()).join(LOGSTASH_NODE_FILE)
+        };
+
         match fs::read_to_string(path) {
             Ok(data) => {
                 let node_info: NodeInfo = serde_json::from_str(data.as_str())?;
@@ -191,7 +199,14 @@ impl<'a> DataFetcher<'a> for PathDataFetcher {
     }
 
     fn fetch_stats(&self) -> Result<NodeStats, AnyError> {
-        let path = Path::new(self.path.as_str()).join(LOGSTASH_NODE_STATS_FILE);
+        let stats_with_vertices =
+            Path::new(self.path.as_str()).join(LOGSTASH_NODE_STATS_VERTICES_FILE);
+        let path = if stats_with_vertices.exists() {
+            stats_with_vertices
+        } else {
+            Path::new(self.path.as_str()).join(LOGSTASH_NODE_STATS_FILE)
+        };
+
         match fs::read_to_string(path) {
             Ok(data) => {
                 let node_stats: NodeStats = serde_json::from_str(data.as_str())?;
