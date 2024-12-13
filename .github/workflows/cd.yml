@@ -66,7 +66,7 @@ jobs:
       - name: Build for Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
-          cargo install --force --locked bindgen-cli        
+          sudo apt-get install -y libclang1        
           cargo install cross --git https://github.com/cross-rs/cross
           cross build --release --target ${{ matrix.target }}
 
