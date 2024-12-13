@@ -67,7 +67,9 @@ jobs:
       - name: Build for Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get install -y libclang1        
+          sudo apt-get install -y build-essential
+          sudo apt-get install -y cmake golang
+          sudo apt-get install -y libclang1
           cargo install cross --git https://github.com/cross-rs/cross
           cross build --release --target ${{ matrix.target }}
 
