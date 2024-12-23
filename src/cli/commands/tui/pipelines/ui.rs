@@ -512,9 +512,19 @@ fn create_pipeline_vertex_plugin_row<'a>(
                         "".to_string()
                     };
 
+                    let drop_percentage_color =
+                        if vertex.plugin_type == "filter" && vertex.config_name == "drop" {
+                            Color::DarkGray
+                        } else {
+                            Color::Yellow
+                        };
+
                     cells.push(Cell::from(Line::from(vec![
                         Span::raw(vertex_stats.events_out.format_number()),
-                        Span::styled(drop_percentage_text, Style::default().fg(Color::Yellow)),
+                        Span::styled(
+                            drop_percentage_text,
+                            Style::default().fg(drop_percentage_color),
+                        ),
                     ])));
                 }
                 Ordering::Equal | Ordering::Greater => {
@@ -825,8 +835,8 @@ fn draw_selected_pipeline_plugin_vertex_details(
         f.render_widget(custom_details, chunks[0]);
     }
 
-    // Charts
-    draw_selected_pipeline_plugin_vertex_charts(
+    // Charts and custom widgets
+    draw_selected_pipeline_plugin_vertex_widgets(
         f,
         app,
         vertex,
@@ -836,7 +846,7 @@ fn draw_selected_pipeline_plugin_vertex_details(
     );
 }
 
-fn draw_selected_pipeline_plugin_vertex_charts(
+fn draw_selected_pipeline_plugin_vertex_widgets(
     f: &mut Frame,
     app: &App,
     vertex: &Vertex,
@@ -844,14 +854,34 @@ fn draw_selected_pipeline_plugin_vertex_charts(
     selected_vertex: &String,
     area: Rect,
 ) {
-    let constraints = if vertex.plugin_type == "input" {
-        vec![Constraint::Percentage(100)]
-    } else {
-        vec![Constraint::Percentage(50), Constraint::Percentage(50)]
-    };
+    match vertex.plugin_type.as_str() {
+        "input" => draw_selected_pipeline_input_plugin_widgets(
+            f,
+            app,
+            vertex,
+            selected_pipeline,
+            selected_vertex,
+            area,
+        ),
+        _ => draw_selected_pipeline_worker_plugin_widgets(
+            f,
+            app,
+            selected_pipeline,
+            selected_vertex,
+            area,
+        ),
+    }
+}
 
+fn draw_selected_pipeline_worker_plugin_widgets(
+    f: &mut Frame,
+    app: &App,
+    selected_pipeline: &String,
+    selected_vertex: &String,
+    area: Rect,
+) {
     let chunks = Layout::default()
-        .constraints(constraints)
+        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
         .direction(Direction::Vertical)
         .split(area);
 
@@ -859,42 +889,163 @@ fn draw_selected_pipeline_plugin_vertex_charts(
         .shared_state
         .pipeline_plugin_flows_chart_state(selected_pipeline, selected_vertex);
 
-    let throughput_state = flow_state.map(|p| &p.throughput);
     let worker_utilization_state = flow_state.map(|p| &p.worker_utilization);
     let worker_millis_per_event_state = flow_state.map(|p| &p.worker_millis_per_event);
 
-    if vertex.plugin_type == "input" {
-        if let Some(throughput) = throughput_state {
-            if !throughput.is_empty() {
-                draw_flow_metric_chart(f, "Throughput", Some("e/s"), throughput, chunks[0], true);
+    if let Some(worker_utilization_state) = worker_utilization_state {
+        if !worker_utilization_state.is_empty() {
+            draw_flow_metric_chart(
+                f,
+                "Worker Utilization",
+                None,
+                worker_utilization_state,
+                chunks[0],
+                false,
+            );
+        }
+    }
+
+    if let Some(worker_millis_per_event_state) = worker_millis_per_event_state {
+        if !worker_millis_per_event_state.is_empty() {
+            draw_flow_metric_chart(
+                f,
+                "Worker Millis Per Event",
+                None,
+                worker_millis_per_event_state,
+                chunks[1],
+                false,
+            );
+        }
+    }
+}
+
+fn draw_selected_pipeline_input_plugin_widgets(
+    f: &mut Frame,
+    app: &App,
+    vertex: &Vertex,
+    selected_pipeline: &String,
+    selected_vertex: &String,
+    area: Rect,
+) {
+    let constraints = if vertex.config_name == "pipeline" {
+        vec![Constraint::Percentage(70), Constraint::Percentage(30)]
+    } else {
+        vec![Constraint::Percentage(100)]
+    };
+
+    let chunks = Layout::default()
+        .constraints(constraints)
+        .direction(Direction::Vertical)
+        .split(area);
+
+    let throughput_state = app
+        .shared_state
+        .pipeline_plugin_flows_chart_state(selected_pipeline, selected_vertex)
+        .map(|p| &p.throughput);
+    
+    if let Some(throughput) = throughput_state {
+        if !throughput.is_empty() {
+            draw_flow_metric_chart(f, "Throughput", Some("e/s"), throughput, chunks[0], true);
+        }
+    }
+
+    if vertex.config_name == "pipeline" {
+        draw_selected_pipeline_input_pipeline_plugin_widgets(
+            f,
+            app,
+            vertex,
+            selected_pipeline,
+            chunks[1],
+        )
+    }
+}
+
+fn draw_selected_pipeline_input_pipeline_plugin_widgets(
+    f: &mut Frame,
+    app: &App,
+    vertex: &Vertex,
+    selected_pipeline: &String,
+    area: Rect,
+) {
+    let mut plugin_option = None;
+    if let Some(node_stats) = app.data.node_stats() {
+        if let Some(pipeline_stats) = node_stats.pipelines.get(selected_pipeline) {
+            if let Some(p) = pipeline_stats.plugins.inputs.get(&vertex.id) {
+                plugin_option = Some(p);
             }
         }
-    } else {
-        if let Some(worker_utilization_state) = worker_utilization_state {
-            if !worker_utilization_state.is_empty() {
-                draw_flow_metric_chart(
-                    f,
-                    "Worker Utilization",
-                    None,
-                    worker_utilization_state,
-                    chunks[0],
-                    false,
-                );
+    }
+    if plugin_option.is_none() {
+        return;
+    }
+
+    let plugin = plugin_option.unwrap();
+    if let Some(listen_address) = plugin.get_other("address", |v| v.as_str(), None) {
+        let mut writing_pipelines: Vec<(&String, i64)> = vec![];
+        for (pipeline_id, stats) in &app.data.node_stats().unwrap().pipelines {
+            let pipeline_total_out_events = stats
+                .plugins
+                .outputs
+                .iter()
+                .filter(|(_, source_plugin)| {
+                    if source_plugin.name.as_ref().is_some_and(|v| v != "pipeline") {
+                        return false;
+                    }
+                    if let Some(send_to) =
+                        source_plugin.get_other("send_to", |p| p.as_array(), None)
+                    {
+                        let addresses: Vec<&str> =
+                            send_to.iter().map(|v| v.as_str().unwrap_or("-")).collect();
+                        return addresses.contains(&listen_address);
+                    }
+                    false
+                })
+                .map(|(_id, plugin)| plugin.events.out)
+                .sum();
+
+            if pipeline_total_out_events > 0 {
+                writing_pipelines.push((pipeline_id, pipeline_total_out_events));
             }
         }
 
-        if let Some(worker_millis_per_event_state) = worker_millis_per_event_state {
-            if !worker_millis_per_event_state.is_empty() {
-                draw_flow_metric_chart(
-                    f,
-                    "Worker Millis Per Event",
-                    None,
-                    worker_millis_per_event_state,
-                    chunks[1],
-                    false,
-                );
-            }
-        }
+        writing_pipelines.sort_by(|a, b| b.1.cmp(&a.1));
+
+        let headers = ["Pipeline", "Events"];
+        let header_cells = headers
+            .iter()
+            .map(|h| Cell::from(*h).style(TABLE_HEADER_CELL_STYLE));
+
+        let header = Row::new(header_cells)
+            .style(TABLE_HEADER_ROW_STYLE)
+            .height(1);
+
+        let widths: Vec<Constraint> = vec![
+            Constraint::Percentage(80), // Pipeline
+            Constraint::Percentage(20), // Events
+        ];
+
+        let rows: Vec<Row> = writing_pipelines
+            .iter()
+            .map(|(pipeline_id, events_out)| {
+                Row::new(vec![
+                    Cell::from(Text::from(Line::from(pipeline_id.to_string()))),
+                    Cell::from(Text::from(Line::from(events_out.format_number()))),
+                ])
+            })
+            .collect();
+
+        let table = Table::new(rows, widths)
+            .header(header)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Top upstream producers"),
+            )
+            .column_spacing(2)
+            .highlight_style(TABLE_SELECTED_ROW_STYLE)
+            .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
+
+        f.render_widget(table, area);
     }
 }
 
@@ -926,11 +1077,16 @@ fn get_selected_pipeline_plugin_vertex_custom_details<'a>(
 
             if plugin.other.contains_key("bulk_requests") {
                 let successes = plugin.get_other("bulk_requests.successes", int_value_mapper, 0);
-                let failures = plugin.get_other("bulk_requests.with_errors", int_value_mapper, 0);
+                let with_errors =
+                    plugin.get_other("bulk_requests.with_errors", int_value_mapper, 0);
+                let failures = plugin.get_other("bulk_requests.failures", int_value_mapper, 0);
 
                 custom_fields.push(Line::from(vec![
                     Span::styled("Bulk Req.: ", Style::default().fg(Color::DarkGray)),
-                    Span::raw(format!("OK: {}, Errors: {}", successes, failures)),
+                    Span::raw(format!(
+                        "OK: {}, w/Errors: {}, Fails: {}",
+                        successes, with_errors, failures
+                    )),
                 ]));
             }
         }
