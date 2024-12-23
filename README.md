@@ -6,6 +6,13 @@ A Terminal User Interface (TUI) for monitoring Logstash 🪵
 
 ## Installation
 
+### Arch Linux
+[tuistash](https://aur.archlinux.org/packages/tuistash) is available as a package in the AUR.
+You can install it using an AUR helper (e.g. `paru`):
+```shell
+paru -S tuistash
+```
+
 ### Homebrew
 ```shell
 brew tap edmocosta/homebrew-tap
