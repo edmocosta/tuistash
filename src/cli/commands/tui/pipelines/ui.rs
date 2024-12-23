@@ -942,7 +942,7 @@ fn draw_selected_pipeline_input_plugin_widgets(
         .shared_state
         .pipeline_plugin_flows_chart_state(selected_pipeline, selected_vertex)
         .map(|p| &p.throughput);
-    
+
     if let Some(throughput) = throughput_state {
         if !throughput.is_empty() {
             draw_flow_metric_chart(f, "Throughput", Some("e/s"), throughput, chunks[0], true);
