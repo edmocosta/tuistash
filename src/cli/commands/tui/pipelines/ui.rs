@@ -983,7 +983,8 @@ fn draw_selected_pipeline_input_pipeline_plugin_widgets(
     if let Some(listen_address) = plugin.get_other("address", |v| v.as_str(), None) {
         let mut writing_pipelines: Vec<(&String, i64)> = vec![];
         for (pipeline_id, stats) in &app.data.node_stats().unwrap().pipelines {
-            let pipeline_total_out_events = stats
+            let mut has_producers = false;
+            let pipeline_plugins_events_out = stats
                 .plugins
                 .outputs
                 .iter()
@@ -996,15 +997,18 @@ fn draw_selected_pipeline_input_pipeline_plugin_widgets(
                     {
                         let addresses: Vec<&str> =
                             send_to.iter().map(|v| v.as_str().unwrap_or("-")).collect();
-                        return addresses.contains(&listen_address);
+                        if addresses.contains(&listen_address) {
+                            has_producers = true;
+                            return true;
+                        }
                     }
                     false
                 })
                 .map(|(_id, plugin)| plugin.events.out)
                 .sum();
 
-            if pipeline_total_out_events > 0 {
-                writing_pipelines.push((pipeline_id, pipeline_total_out_events));
+            if has_producers {
+                writing_pipelines.push((pipeline_id, pipeline_plugins_events_out));
             }
         }
 
