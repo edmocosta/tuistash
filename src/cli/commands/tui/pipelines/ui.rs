@@ -72,16 +72,17 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
         .style(TABLE_HEADER_ROW_STYLE)
         .height(1);
 
-    let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
-    let pipelines = Table::new(rows, widths)
+    let pipelines_count = rows.len();
+    let pipelines = Table::new(rows, vec![Constraint::Percentage(100)])
         .header(header)
-        .block(Block::default().borders(Borders::ALL).title("Pipelines"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("Pipelines({})", pipelines_count)),
+        )
         .column_spacing(2)
-        .highlight_style(TABLE_SELECTED_ROW_STYLE)
-        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
-        .widths([
-            Constraint::Percentage(100), // Name
-        ]);
+        .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
+        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
     f.render_stateful_widget(
         pipelines,
@@ -146,20 +147,20 @@ fn draw_selected_pipeline_vertices(f: &mut Frame, app: &mut App, area: Rect) {
             .style(TABLE_HEADER_ROW_STYLE)
             .height(1);
 
-        let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
+        let widths: Vec<Constraint> = vec![
+            Constraint::Percentage(49), // Name
+            Constraint::Percentage(8),  // Kind
+            Constraint::Percentage(11), // In
+            Constraint::Percentage(15), // Out
+            Constraint::Percentage(18), // Duration
+        ];
+
         let vertices_table = Table::new(rows, widths)
             .header(header)
             .block(Block::default().borders(Borders::ALL).title("Pipeline"))
             .column_spacing(2)
-            .highlight_style(TABLE_SELECTED_ROW_STYLE)
-            .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
-            .widths([
-                Constraint::Percentage(49), // Name
-                Constraint::Percentage(8),  // Kind
-                Constraint::Percentage(11), // In
-                Constraint::Percentage(15), // Out
-                Constraint::Percentage(18), // Duration
-            ]);
+            .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
+            .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
         f.render_stateful_widget(
             vertices_table,
@@ -1024,8 +1025,8 @@ fn draw_selected_pipeline_input_pipeline_plugin_widgets(
             .height(1);
 
         let widths: Vec<Constraint> = vec![
-            Constraint::Percentage(80), // Pipeline
-            Constraint::Percentage(20), // Events
+            Constraint::Percentage(75), // Pipeline
+            Constraint::Percentage(25), // Events
         ];
 
         let rows: Vec<Row> = writing_pipelines
@@ -1046,7 +1047,7 @@ fn draw_selected_pipeline_input_pipeline_plugin_widgets(
                     .title("Top upstream producers"),
             )
             .column_spacing(2)
-            .highlight_style(TABLE_SELECTED_ROW_STYLE)
+            .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
             .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
         f.render_widget(table, area);
