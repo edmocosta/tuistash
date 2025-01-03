@@ -1,3 +1,10 @@
+## 0.6.0
+- Changed the dropped events percentage color from yellow to dark gray for the `logstash-filter-drop` plugin.
+- The `logstash-output-elasticsearch` plugin details now shows the bulk requests failures.
+- Added the "Top upstream producers" list on the `pipeline` input plugin details.
+- Minor UI improvements.
+- Bumped dependencies versions.
+
 ## 0.5.0
  - Added support for vertices and edges files diagnostics.
  - The thread name is now displayed on the traces details block.

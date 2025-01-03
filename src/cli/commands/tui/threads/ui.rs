@@ -104,19 +104,15 @@ fn draw_selected_thread_traces(f: &mut Frame, app: &mut App, area: Rect) {
         "Traces".to_string()
     };
 
-    let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
-    let traces = Table::new(rows, widths)
+    let traces = Table::new(rows, vec![Constraint::Percentage(100)])
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .title(Span::from(traces_block_title).bold()),
         )
         .column_spacing(2)
-        .highlight_style(TABLE_SELECTED_ROW_STYLE)
-        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
-        .widths([
-            Constraint::Percentage(100), // Name
-        ]);
+        .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
+        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
     f.render_stateful_widget(
         traces,
@@ -198,7 +194,7 @@ fn draw_threads_table(f: &mut Frame, app: &mut App, area: Rect) {
                 .title(format!("Busiest {} threads", busiest_threads)),
         )
         .column_spacing(2)
-        .highlight_style(TABLE_SELECTED_ROW_STYLE)
+        .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
         .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
     f.render_stateful_widget(threads, area, &mut app.threads_state.threads_table.state);

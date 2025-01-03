@@ -292,7 +292,7 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
         .header(header)
         .block(Block::default().borders(Borders::ALL).title("Pipelines"))
         .column_spacing(2)
-        .highlight_style(TABLE_SELECTED_ROW_STYLE)
+        .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
         .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
     f.render_stateful_widget(
@@ -365,18 +365,18 @@ fn draw_selected_pipeline_input_plugins(f: &mut Frame, app: &mut App, area: Rect
         .style(TABLE_HEADER_ROW_STYLE)
         .height(1);
 
-    let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
+    let widths: Vec<Constraint> = vec![
+        Constraint::Percentage(30), // Name
+        Constraint::Percentage(30), // Type
+        Constraint::Percentage(40), // Throughput
+    ];
+
     let pipelines = Table::new(rows, widths)
         .header(header)
         .block(Block::default().borders(Borders::ALL).title("Inputs"))
         .column_spacing(2)
-        .highlight_style(TABLE_SELECTED_ROW_STYLE)
-        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
-        .widths([
-            Constraint::Percentage(30), // Name
-            Constraint::Percentage(30), // Type
-            Constraint::Percentage(40), // Throughput
-        ]);
+        .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
+        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
     f.render_stateful_widget(
         pipelines,
@@ -432,19 +432,19 @@ fn draw_selected_pipeline_other_plugins(f: &mut Frame, app: &mut App, area: Rect
         .style(TABLE_HEADER_ROW_STYLE)
         .height(1);
 
-    let widths: Vec<Constraint> = vec![Constraint::Ratio(rows.len() as u32, 1); rows.len()];
+    let widths: Vec<Constraint> = vec![
+        Constraint::Percentage(40), // Name
+        Constraint::Percentage(10), // Type
+        Constraint::Percentage(25), // Worker millis per event
+        Constraint::Percentage(25), // Worker utilization
+    ];
+
     let pipelines = Table::new(rows, widths)
         .header(header)
         .block(Block::default().borders(Borders::ALL).title("Plugins"))
         .column_spacing(2)
-        .highlight_style(TABLE_SELECTED_ROW_STYLE)
-        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL)
-        .widths([
-            Constraint::Percentage(40), // Name
-            Constraint::Percentage(10), // Type
-            Constraint::Percentage(25), // Worker millis per event
-            Constraint::Percentage(25), // Worker utilization
-        ]);
+        .row_highlight_style(TABLE_SELECTED_ROW_STYLE)
+        .highlight_symbol(TABLE_SELECTED_ROW_SYMBOL);
 
     f.render_stateful_widget(
         pipelines,
