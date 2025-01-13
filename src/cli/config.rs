@@ -1,6 +1,6 @@
 use crate::api;
 
-pub struct Config<'a> {
-    pub api: &'a api::Client<'a>,
+pub struct Config {
+    pub api: api::Client,
     pub diagnostic_path: Option<String>,
 }

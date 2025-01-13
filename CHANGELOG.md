@@ -1,3 +1,6 @@
+## 0.7.0
+- Logstash APIs are now fetched concurrently, improving the overall performance, and reducing UI lags when pipelines are too complex or contains several components.
+
 ## 0.6.0
 - Changed the dropped events percentage color from yellow to dark gray for the `logstash-filter-drop` plugin.
 - The `logstash-output-elasticsearch` plugin details now shows the bulk requests failures.

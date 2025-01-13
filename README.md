@@ -1,6 +1,6 @@
 # Tuistash
 
-A Terminal User Interface (TUI) for monitoring Logstash 🪵
+A Terminal User Interface (TUI) for Logstash 🪵
 
 ![demo](docs/img/demo.gif)
 
@@ -22,8 +22,9 @@ brew tap edmocosta/homebrew-tap
 brew install tuistash
 ```
 
-### Manually
-Download the latest release from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases) or build it from the source:
+### Manual
+The compiled versions can be downloaded from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases).
+If a version for your operating system isn't available, you can build it from the source by following these steps:
 
 1 - Install Rust and Cargo (Linux and macOS):
 ```shell
@@ -48,6 +49,9 @@ cargo build --release
 
 The Logstash's [monitoring API](https://www.elastic.co/guide/en/logstash/current/monitoring-logstash.html) must be enabled
 and accessible from the client machine, unless the data is being read from a Logstash diagnostic path.
+
+By default, the data is polled every 1 second. If you have very complex pipelines, increasing the refresh interval (`--interval`) might
+improve the UI performance.
 
 ```shell
 $ ./tuistash --help

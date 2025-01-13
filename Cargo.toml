@@ -7,14 +7,14 @@ documentation = "https://github.com/edmocosta/tuistash"
 keywords = ["logstash", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
 authors = ["Edmo Vamerlatti Costa <edinhow@gmail.com>"]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.20", features = ["std", "derive", "help", "usage", "suggestions"], default-features = false }
 ureq = { version = "2.9.7", features = ["json", "tls"], default-features = false }
-serde = { version = "1.0.210", features = ["derive"], default-features = false }
-serde_json = { version = "1.0.128", default-features = false }
+serde = { version = "1.0.217", features = ["derive"], default-features = false }
+serde_json = { version = "1.0.135", default-features = false }
 base64 = { version = "0.22.1", features = ["std"], default-features = false }
 rustls = { version = "0.23.5", default-features = false }
 colored_json = { version = "5.0", default-features = false }

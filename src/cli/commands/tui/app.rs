@@ -1,12 +1,15 @@
+use std::sync::mpsc::RecvTimeoutError;
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, RwLock};
+use std::thread;
+use std::thread::sleep;
 use std::time::Duration;
 
 use crate::api::hot_threads::NodeHotThreads;
-use crossterm::event::{KeyCode, KeyEvent};
-
 use crate::api::node::NodeInfo;
 use crate::api::stats::NodeStats;
 use crate::commands::tui::data_decorator;
-use crate::commands::tui::data_fetcher::DataFetcher;
+use crate::commands::tui::data_fetcher::{DataFetcher, NodeData};
 use crate::commands::tui::events::EventsListener;
 use crate::commands::tui::flows::state::FlowsState;
 use crate::commands::tui::node::state::NodeState;
@@ -15,22 +18,21 @@ use crate::commands::tui::shared_state::SharedState;
 use crate::commands::tui::threads::state::ThreadsState;
 use crate::commands::tui::widgets::TabsState;
 use crate::errors::AnyError;
+use crossterm::event::{KeyCode, KeyEvent};
 
-pub(crate) struct AppData<'a> {
+pub(crate) struct AppData {
     errored: bool,
     last_error_message: Option<String>,
-    data_fetcher: &'a dyn DataFetcher<'a>,
     node_info: Option<NodeInfo>,
     node_stats: Option<NodeStats>,
     hot_threads: Option<NodeHotThreads>,
 }
 
-impl<'a> AppData<'a> {
-    fn new(data_fetcher: &'a impl DataFetcher<'a>) -> Self {
+impl AppData {
+    fn new() -> Self {
         AppData {
             errored: false,
             last_error_message: None,
-            data_fetcher,
             node_stats: None,
             node_info: None,
             hot_threads: None,
@@ -48,46 +50,46 @@ impl<'a> AppData<'a> {
         self.reset();
     }
 
-    fn fetch_all(&mut self) -> Result<&mut Self, AnyError> {
-        match self.data_fetcher.fetch_info() {
-            Ok(node_info) => {
-                self.node_info = Some(node_info);
-            }
-            Err(e) => {
-                self.handle_error(&e);
-                return Err(e);
-            }
+    fn fetch_and_set(&mut self, data_fetcher: &dyn DataFetcher) {
+        if let Ok(mut node_data) = data_fetcher.fetch_node_data(None) {
+            data_decorator::decorate(&mut node_data.info, &mut node_data.stats);
+            self.node_info = Some(node_data.info);
+            self.node_stats = Some(node_data.stats);
         }
 
-        match self.data_fetcher.fetch_stats() {
-            Ok(node_stats) => {
-                self.node_stats = Some(node_stats);
-            }
-            Err(e) => {
-                self.handle_error(&e);
-                return Err(e);
-            }
+        if let Ok(hot_threads) = data_fetcher.fetch_hot_threads(None) {
+            self.hot_threads = Some(hot_threads);
         }
+    }
 
-        match self.data_fetcher.fetch_hot_threads() {
-            Ok(hot_threads) => {
-                self.hot_threads = Some(hot_threads);
-            }
+    fn get_fetched_data(
+        data_fetcher: &dyn DataFetcher,
+        data_tx: Sender<(NodeInfo, NodeStats, Option<NodeHotThreads>)>,
+        error_tx: Sender<AnyError>,
+    ) {
+        let mut node_data: NodeData = match data_fetcher.fetch_node_data(None) {
+            Ok(value) => value,
             Err(e) => {
-                self.handle_error(&e);
-                return Err(e);
+                if e.downcast_ref::<RecvTimeoutError>().is_none() {
+                    _ = error_tx.send(e);
+                }
+                return;
             }
-        }
+        };
 
-        data_decorator::decorate(
-            self.node_info.as_mut().unwrap(),
-            self.node_stats.as_mut().unwrap(),
-        );
+        let hot_threads = match data_fetcher.fetch_hot_threads(Some(Duration::from_millis(100))) {
+            Ok(data) => Some(data),
+            Err(e) => {
+                if e.downcast_ref::<RecvTimeoutError>().is_none() {
+                    _ = error_tx.send(e);
+                }
+                None
+            }
+        };
 
-        self.errored = false;
-        self.last_error_message = None;
-
-        Ok(self)
+        data_decorator::decorate(&mut node_data.info, &mut node_data.stats);
+        let result = (node_data.info, node_data.stats, hot_threads);
+        _ = data_tx.send(result);
     }
 
     pub(crate) fn node_info(&self) -> Option<&NodeInfo> {
@@ -112,7 +114,7 @@ impl<'a> AppData<'a> {
 }
 
 pub(crate) struct App<'a> {
-    pub title: &'a str,
+    pub title: String,
     pub should_quit: bool,
     pub show_help: bool,
     pub tabs: TabsState,
@@ -121,8 +123,8 @@ pub(crate) struct App<'a> {
     pub pipelines_state: PipelinesState<'a>,
     pub flows_state: FlowsState,
     pub threads_state: ThreadsState,
-    pub data: AppData<'a>,
-    pub host: &'a str,
+    pub data: Arc<RwLock<AppData>>,
+    pub host: String,
     pub sampling_interval: Option<Duration>,
 }
 
@@ -132,12 +134,7 @@ impl<'a> App<'a> {
     pub const TAB_THREADS: usize = 2;
     pub const TAB_NODE: usize = 3;
 
-    pub fn new(
-        title: &'a str,
-        fetcher: &'a impl DataFetcher<'a>,
-        host: &'a str,
-        sampling_interval: Option<Duration>,
-    ) -> App<'a> {
+    pub fn new(title: String, host: String, sampling_interval: Option<Duration>) -> App<'a> {
         App {
             title,
             sampling_interval,
@@ -146,7 +143,7 @@ impl<'a> App<'a> {
             tabs: TabsState::new(),
             pipelines_state: PipelinesState::new(),
             node_state: NodeState::new(),
-            data: AppData::new(fetcher),
+            data: Arc::new(RwLock::new(AppData::new())),
             host,
             shared_state: SharedState::new(),
             flows_state: FlowsState::new(),
@@ -155,7 +152,9 @@ impl<'a> App<'a> {
     }
 
     fn reset(&mut self) {
-        self.data.reset();
+        {
+            self.data.write().unwrap().reset();
+        }
         self.trigger_states_event(|listener, _| {
             listener.reset();
         });
@@ -232,10 +231,71 @@ impl<'a> App<'a> {
         self.should_quit = true;
     }
 
+    pub fn set_data(&mut self, data_fetcher: &dyn DataFetcher) {
+        self.data.write().unwrap().fetch_and_set(data_fetcher);
+    }
+
+    pub fn start_reading_data(&self, data_fetcher: Box<dyn DataFetcher>, interval: Duration) {
+        let (data_tx, data_rx) = channel::<(NodeInfo, NodeStats, Option<NodeHotThreads>)>();
+        let (error_tx, error_rx) = channel::<AnyError>();
+
+        thread::Builder::new()
+            .name("app-data-get-fetched-data".to_string())
+            .spawn(move || loop {
+                AppData::get_fetched_data(data_fetcher.as_ref(), data_tx.clone(), error_tx.clone());
+                sleep(interval);
+            })
+            .unwrap();
+
+        let data = self.data.clone();
+        thread::Builder::new()
+            .name("app-data-fetched-data-receiver".to_string())
+            .spawn(move || loop {
+                if let Ok(values) = data_rx.recv() {
+                    let mut data = data.write().unwrap();
+                    data.node_info = Some(values.0);
+                    data.node_stats = Some(values.1);
+                    data.hot_threads = values.2;
+                    data.errored = false;
+                    data.last_error_message = None;
+                }
+                sleep(interval);
+            })
+            .unwrap();
+
+        let data = self.data.clone();
+        thread::Builder::new()
+            .name("app-data-fetch-api-errors".to_string())
+            .spawn(move || loop {
+                if let Ok(values) = error_rx.recv() {
+                    data.write().unwrap().handle_error(&values);
+                }
+                sleep(interval);
+            })
+            .unwrap();
+    }
+
+    pub fn wait_node_data(&self) {
+        loop {
+            {
+                let data = self.data.read().unwrap();
+                if data.errored {
+                    break;
+                }
+                if data.node_info.is_some() && data.node_stats.is_some() {
+                    return;
+                }
+            }
+            sleep(Duration::from_millis(100));
+        }
+    }
+
     pub fn on_tick(&mut self) {
-        if self.data.fetch_all().is_err() {
-            self.reset();
-            return;
+        {
+            if self.data.read().unwrap().errored {
+                self.reset();
+                return;
+            }
         }
 
         self.trigger_states_event(|listener, app_data| {
@@ -253,7 +313,7 @@ impl<'a> App<'a> {
         ];
 
         for listener in listeners {
-            func(listener, &self.data);
+            func(listener, &self.data.read().unwrap());
         }
     }
 
@@ -279,7 +339,7 @@ impl<'a> App<'a> {
         };
 
         if let Some(value) = listener {
-            func(&self.data, value);
+            func(&self.data.read().unwrap(), value);
         }
     }
 }

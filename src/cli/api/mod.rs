@@ -14,23 +14,29 @@ pub mod node_api;
 pub mod stats;
 mod tls;
 
-pub struct Client<'a> {
+#[derive(Debug, Clone)]
+pub struct Client {
     client: Agent,
-    config: ClientConfig<'a>,
+    config: ClientConfig,
 }
 
-pub struct ClientConfig<'a> {
+#[derive(Debug, Clone)]
+pub struct ClientConfig {
     base_url: String,
-    username: Option<&'a str>,
-    password: Option<&'a str>,
+    username: Option<String>,
+    password: Option<String>,
 }
 
-impl ClientConfig<'_> {
+impl ClientConfig {
     pub fn basic_auth_header(&self) -> String {
         let mut buf = b"Basic ".to_vec();
         {
             let mut encoder = EncoderWriter::new(&mut buf, &BASE64_STANDARD);
-            let _ = write!(encoder, "{}:", &self.username.unwrap_or(""));
+            let _ = write!(
+                encoder,
+                "{}:",
+                &self.username.as_ref().unwrap_or(&"".to_string())
+            );
             if let Some(password) = &self.password {
                 let _ = write!(encoder, "{}", password);
             }
@@ -40,11 +46,11 @@ impl ClientConfig<'_> {
     }
 }
 
-impl<'a> Client<'a> {
+impl Client {
     pub fn new(
-        host: &'a str,
-        username: Option<&'a str>,
-        password: Option<&'a str>,
+        host: String,
+        username: Option<String>,
+        password: Option<String>,
         skip_tls_verification: bool,
     ) -> Result<Self, AnyError> {
         let user_agent = "tuistash";

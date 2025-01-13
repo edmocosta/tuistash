@@ -180,7 +180,7 @@ fn draw_threads_table(f: &mut Frame, app: &mut App, area: Rect) {
         Constraint::Percentage(states_cell_size_percentage), // States
     ];
 
-    let busiest_threads = if let Some(hot_threads) = app.data.hot_threads() {
+    let busiest_threads = if let Some(hot_threads) = app.data.read().unwrap().hot_threads() {
         hot_threads.hot_threads.busiest_threads
     } else {
         app.threads_state.threads_table.items.len() as u64

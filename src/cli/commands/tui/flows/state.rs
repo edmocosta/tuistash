@@ -1,4 +1,4 @@
-use crate::api::node::Vertex;
+use crate::api::node::{PipelineInfo, Vertex};
 use crate::api::stats::FlowMetricValue;
 use crate::commands::tui::app::AppData;
 use crate::commands::tui::events::EventsListener;
@@ -27,6 +27,7 @@ pub(crate) struct PipelineFlowTableItem {
     pub _id: String,
     pub name: String,
     pub workers: i64,
+    pub vertices: HashMap<String, Vertex>,
     pub input_throughput: Option<FlowMetricValue>,
     pub filter_throughput: Option<FlowMetricValue>,
     pub output_throughput: Option<FlowMetricValue>,
@@ -106,6 +107,17 @@ impl StatefulTable<PluginFlowTableItem> {
 }
 
 impl StatefulTable<PipelineFlowTableItem> {
+    fn create_pipeline_vertices_map(
+        &self,
+        pipeline_info: &PipelineInfo,
+    ) -> HashMap<String, Vertex> {
+        let mut map = HashMap::new();
+        for vertex in &pipeline_info.graph.graph.vertices {
+            map.insert(vertex.id.to_string(), vertex.clone());
+        }
+        map
+    }
+
     fn update(&mut self, data: &AppData) {
         if let Some(node_info) = &data.node_info() {
             if let Some(node_stats) = &data.node_stats() {
@@ -116,6 +128,7 @@ impl StatefulTable<PipelineFlowTableItem> {
                             _id: pipeline_info.ephemeral_id.to_string(),
                             name: name.to_string(),
                             workers: pipeline_info.workers,
+                            vertices: self.create_pipeline_vertices_map(pipeline_info),
                             input_throughput: None,
                             filter_throughput: None,
                             output_throughput: None,
@@ -209,32 +222,6 @@ impl FlowsState {
             current_focus: PIPELINES_LIST,
         }
     }
-
-    pub(crate) fn selected_pipeline_vertices<'a>(
-        &self,
-        app_data: &'a AppData,
-    ) -> HashMap<String, &'a Vertex> {
-        let mut map = HashMap::new();
-
-        if let (Some(selected_pipeline), Some(node_info), Some(_node_stats)) = (
-            self.pipelines_flow_table.selected_item(),
-            app_data.node_info(),
-            app_data.node_stats(),
-        ) {
-            if let Some(pipeline_info) = &node_info
-                .pipelines
-                .as_ref()
-                .and_then(|p| p.get(&selected_pipeline.name))
-            {
-                for vertex in &pipeline_info.graph.graph.vertices {
-                    map.insert(vertex.id.to_string(), vertex);
-                }
-            }
-        }
-
-        map
-    }
-
     fn update_selected_pipeline_tables(&mut self, app_data: &AppData) {
         if self.show_selected_pipeline {
             if let Some(selected_pipeline) = self.pipelines_flow_table.selected_item() {
@@ -284,7 +271,10 @@ impl EventsListener for FlowsState {
     }
 
     fn on_right(&mut self, _: &AppData) {
-        if self.current_focus == PIPELINES_LIST && self.show_selected_pipeline {
+        if self.current_focus == PIPELINES_LIST
+            && self.show_selected_pipeline
+            && !self.input_plugins_flow_table.items.is_empty()
+        {
             self.current_focus = PIPELINE_INPUTS_LIST;
             self.input_plugins_flow_table.next();
         }
