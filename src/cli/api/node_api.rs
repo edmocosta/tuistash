@@ -5,7 +5,7 @@ use crate::api::Client;
 use crate::errors::AnyError;
 use serde_json::Value;
 
-impl Client<'_> {
+impl Client {
     pub const QUERY_NODE_INFO_GRAPH: &'static [(&'static str, &'static str)] = &[("graph", "true")];
     pub const QUERY_NODE_STATS_VERTICES: &'static [(&'static str, &'static str)] =
         &[("vertices", "true")];

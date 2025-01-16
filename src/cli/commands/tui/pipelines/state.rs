@@ -142,7 +142,9 @@ impl EventsListener for PipelinesState<'_> {
     }
 
     fn on_right(&mut self, _: &AppData) {
-        if self.current_focus == PIPELINE_VERTEX_LIST {
+        if self.current_focus == PIPELINE_VERTEX_LIST
+            && !self.selected_pipeline_vertex.items.is_empty()
+        {
             self.current_focus = PIPELINE_VERTEX_VIEW;
             self.selected_pipeline_vertex.next();
         }
@@ -179,7 +181,7 @@ impl EventsListener for PipelinesState<'_> {
         }
 
         if let KeyCode::Char(c) = key_event.code {
-            if c.to_ascii_lowercase() == 'c' && self.pipelines_table.selected_item().is_some() {
+            if c.eq_ignore_ascii_case(&'c') && self.pipelines_table.selected_item().is_some() {
                 self.show_selected_vertex_details = false;
                 self.show_selected_pipeline_charts = !self.show_selected_pipeline_charts;
             }

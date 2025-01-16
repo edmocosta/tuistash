@@ -17,11 +17,11 @@ type ExitCode = i32;
 
 fn run() -> Result<ExitCode, AnyError> {
     let cli = cli::build_cli();
-    let username = cli.username.as_deref();
-    let password = cli.password.as_deref();
-    let api = api::Client::new(&cli.host, username, password, cli.skip_tls_verification).unwrap();
+    let username = cli.username;
+    let password = cli.password;
+    let api = api::Client::new(cli.host, username, password, cli.skip_tls_verification)?;
     let config = Config {
-        api: &api,
+        api,
         diagnostic_path: cli.diagnostic_path,
     };
 

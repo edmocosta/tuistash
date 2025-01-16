@@ -125,13 +125,13 @@ fn draw_selected_pipeline_vertices(f: &mut Frame, app: &mut App, area: Rect) {
     {
         let rows: Vec<Row>;
         let pipeline_graph: Option<PipelineGraph>;
-
+        let data = app.data.read().unwrap();
         if let Some(selected_pipeline) = app.pipelines_state.pipelines_table.selected_item() {
             pipeline_graph = Some(PipelineGraph::from(&selected_pipeline.graph));
             rows = create_selected_pipeline_vertices_rows(
                 pipeline_graph.as_ref().unwrap(),
                 selected_pipeline,
-                &app.data,
+                &data,
             );
         } else {
             pipeline_graph = None;
@@ -176,7 +176,7 @@ fn draw_selected_pipeline_vertices(f: &mut Frame, app: &mut App, area: Rect) {
     }
 }
 
-fn draw_selected_pipeline_flow_charts(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_selected_pipeline_flow_charts(f: &mut Frame, app: &App, area: Rect) {
     let selected_pipeline = app.pipelines_state.selected_pipeline_name();
     if selected_pipeline.is_none() {
         return;
@@ -309,8 +309,10 @@ fn draw_selected_pipeline_events_block(f: &mut Frame, app: &mut App, area: Rect)
         .borders(Borders::ALL);
 
     let events_text: Line;
+    let data = app.data.read().unwrap();
+
     if let Some(selected_pipeline) = &app.pipelines_state.pipelines_table.selected_item() {
-        if let Some(node_stats) = &app.data.node_stats() {
+        if let Some(node_stats) = &data.node_stats() {
             let selected_pipeline_stats =
                 node_stats.pipelines.get(&selected_pipeline.name).unwrap();
 
@@ -373,7 +375,8 @@ fn draw_selected_pipeline_events_block(f: &mut Frame, app: &mut App, area: Rect)
 }
 
 fn get_pipeline_workers(app: &App, pipeline_name: &str) -> Option<i64> {
-    if let Some(node_info) = app.data.node_info() {
+    let data = app.data.read().unwrap();
+    if let Some(node_info) = data.node_info() {
         if let Some(pipelines) = &node_info.pipelines {
             return pipelines
                 .get(pipeline_name)
@@ -681,7 +684,8 @@ fn create_selected_pipeline_vertices_rows<'a>(
 }
 
 fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: Rect) {
-    if app.data.node_stats().is_none()
+    let data = app.data.read().unwrap();
+    if data.node_stats().is_none()
         || app
             .pipelines_state
             .pipelines_table
@@ -692,7 +696,7 @@ fn draw_selected_pipeline_queue_vertex_details(f: &mut Frame, app: &App, area: R
     }
 
     let selected_pipeline = app.pipelines_state.pipelines_table.selected_item().unwrap();
-    let node_stats = app.data.node_stats().unwrap();
+    let node_stats = data.node_stats().unwrap();
 
     let chunks = Layout::default()
         .constraints(vec![Constraint::Length(2), Constraint::Percentage(98)])
@@ -799,7 +803,8 @@ fn draw_selected_pipeline_plugin_vertex_details(
         return;
     }
 
-    let node_stats = app.data.node_stats();
+    let data = app.data.read().unwrap();
+    let node_stats = data.node_stats();
     if node_stats.is_none() {
         return;
     }
@@ -969,7 +974,8 @@ fn draw_selected_pipeline_input_pipeline_plugin_widgets(
     area: Rect,
 ) {
     let mut plugin_option = None;
-    if let Some(node_stats) = app.data.node_stats() {
+    let data = app.data.read().unwrap();
+    if let Some(node_stats) = data.node_stats() {
         if let Some(pipeline_stats) = node_stats.pipelines.get(selected_pipeline) {
             if let Some(p) = pipeline_stats.plugins.inputs.get(&vertex.id) {
                 plugin_option = Some(p);
@@ -983,7 +989,7 @@ fn draw_selected_pipeline_input_pipeline_plugin_widgets(
     let plugin = plugin_option.unwrap();
     if let Some(listen_address) = plugin.get_other("address", |v| v.as_str(), None) {
         let mut writing_pipelines: Vec<(&String, i64)> = vec![];
-        for (pipeline_id, stats) in &app.data.node_stats().unwrap().pipelines {
+        for (pipeline_id, stats) in &data.node_stats().unwrap().pipelines {
             let mut has_producers = false;
             let pipeline_plugins_events_out = stats
                 .plugins

@@ -23,7 +23,7 @@ pub(crate) fn draw_node_tab(f: &mut Frame, app: &mut App, area: Rect) {
     draw_node_widgets(f, app, chunks[0]);
 }
 
-fn draw_node_widgets(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_node_widgets(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .constraints(vec![Constraint::Length(3), Constraint::Percentage(90)])
         .direction(Direction::Vertical)
@@ -31,7 +31,8 @@ fn draw_node_widgets(f: &mut Frame, app: &mut App, area: Rect) {
     {
         // Node overview
         let events_block = Block::default().title("Overview").borders(Borders::ALL);
-        let overview_text: Line = if let Some(node_stats) = &app.data.node_stats() {
+        let data = app.data.read().unwrap();
+        let overview_text: Line = if let Some(node_stats) = data.node_stats() {
             Line::from(vec![
                 Span::styled("Events in: ", Style::default().fg(Color::DarkGray)),
                 Span::from(node_stats.events.r#in.format_number()),
@@ -74,7 +75,7 @@ fn draw_node_widgets(f: &mut Frame, app: &mut App, area: Rect) {
     }
 }
 
-fn draw_node_charts(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_node_charts(f: &mut Frame, app: &App, area: Rect) {
     let main_chunks = Layout::default()
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .direction(Direction::Horizontal)
@@ -123,7 +124,7 @@ fn draw_node_charts(f: &mut Frame, app: &mut App, area: Rect) {
     draw_process_cpu_chart(f, app, node_chart_chunks[2]);
 }
 
-fn draw_jvm_heap_chart(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_jvm_heap_chart(f: &mut Frame, app: &App, area: Rect) {
     let mut heap_max_data: Vec<(f64, f64)> = vec![];
     let mut heap_used_data: Vec<(f64, f64)> = vec![];
 
@@ -197,7 +198,7 @@ fn draw_jvm_heap_chart(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(chart, area);
 }
 
-fn draw_jvm_non_heap_chart(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_jvm_non_heap_chart(f: &mut Frame, app: &App, area: Rect) {
     let mut non_heap_used: Vec<(f64, f64)> = vec![];
     let mut non_heap_committed: Vec<(f64, f64)> = vec![];
 
@@ -277,7 +278,7 @@ fn draw_jvm_non_heap_chart(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(chart, area);
 }
 
-fn draw_process_cpu_chart(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_process_cpu_chart(f: &mut Frame, app: &App, area: Rect) {
     let cpu_percentage_data: Vec<(f64, f64)> = app
         .node_state
         .chart_process_cpu
@@ -332,12 +333,13 @@ fn draw_process_cpu_chart(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(chart, area);
 }
 
-fn draw_process_file_descriptor_gauge(f: &mut Frame, app: &mut App, area: Rect) {
+fn draw_process_file_descriptor_gauge(f: &mut Frame, app: &App, area: Rect) {
     let usage: u16;
     let max_file_descriptors;
     let open_file_descriptors;
 
-    if let Some(stats) = &app.data.node_stats() {
+    let data = app.data.read().unwrap();
+    if let Some(stats) = &data.node_stats() {
         open_file_descriptors = stats.process.open_file_descriptors;
         max_file_descriptors = stats.process.max_file_descriptors;
         usage = ((open_file_descriptors * 100) / max_file_descriptors) as u16;

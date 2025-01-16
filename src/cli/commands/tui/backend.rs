@@ -1,8 +1,8 @@
-use std::{
-    io,
-    time::{Duration, Instant},
-};
-
+use crate::commands::tui::app::App;
+use crate::commands::tui::data_fetcher::{ApiDataFetcher, PathDataFetcher};
+use crate::commands::tui::ui;
+use crate::config::Config;
+use crate::errors::AnyError;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -12,12 +12,11 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     Terminal,
 };
-
-use crate::commands::tui::app::App;
-use crate::commands::tui::data_fetcher::{ApiDataFetcher, PathDataFetcher};
-use crate::commands::tui::ui;
-use crate::config::Config;
-use crate::errors::AnyError;
+use std::ops::Add;
+use std::{
+    io,
+    time::{Duration, Instant},
+};
 
 const APP_TITLE: &str = "Logstash";
 
@@ -29,36 +28,32 @@ pub fn run(interval: Duration, config: &Config) -> Result<(), AnyError> {
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
     terminal.clear()?;
 
     if let Some(path) = &config.diagnostic_path {
+        let path = path.to_string();
         match PathDataFetcher::new(path.to_string()) {
             Ok(file_data_fetcher) => {
-                run_app(
-                    &mut terminal,
-                    App::new(
-                        APP_TITLE,
-                        &file_data_fetcher,
-                        path.to_string().as_str(),
-                        None,
-                    ),
-                )?;
+                let mut app = App::new(APP_TITLE.to_string(), path, None);
+                app.set_data(&file_data_fetcher);
+                run_app(&mut terminal, app)?;
             }
             Err(err) => {
                 return Err(err);
             }
         };
     } else {
-        run_app(
-            &mut terminal,
-            App::new(
-                APP_TITLE,
-                &ApiDataFetcher::new(config.api),
-                config.api.base_url(),
-                Some(interval),
-            ),
-        )?;
+        let app = App::new(
+            APP_TITLE.to_string(),
+            config.api.base_url().to_string(),
+            Some(interval),
+        );
+
+        let fetcher = ApiDataFetcher::new(config.api.clone());
+        fetcher.start_polling(interval);
+
+        app.start_reading_data(Box::new(fetcher), interval);
+        run_app(&mut terminal, app)?;
     };
 
     disable_raw_mode()?;
@@ -74,16 +69,19 @@ pub fn run(interval: Duration, config: &Config) -> Result<(), AnyError> {
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
-    let mut last_tick = Instant::now();
-
+    app.wait_node_data();
     app.on_tick();
 
+    let mut last_tick = Instant::now();
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        let interval = app.sampling_interval.unwrap_or(Duration::from_secs(1));
+        let tick_interval = app
+            .sampling_interval
+            .unwrap_or(Duration::from_secs(1))
+            .add(Duration::from_millis(300));
 
-        let timeout = interval
+        let timeout = tick_interval
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
 
@@ -96,7 +94,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
             }
         }
 
-        if app.sampling_interval.is_some() && last_tick.elapsed() >= interval {
+        if app.sampling_interval.is_some() && last_tick.elapsed() >= tick_interval {
             app.on_tick();
             last_tick = Instant::now();
         }

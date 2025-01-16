@@ -18,7 +18,8 @@ use crate::commands::tui::pipelines::ui::{draw_pipelines_tab, pipelines_tab_shor
 use crate::commands::tui::threads::ui::{draw_threads_tab, threads_tab_shortcuts_help};
 
 pub(crate) fn draw(f: &mut Frame, app: &mut App) {
-    let constraints = if app.show_help || app.data.last_error_message().is_some() {
+    let last_error_message = app.data.read().unwrap().last_error_message().clone();
+    let constraints = if app.show_help || last_error_message.is_some() {
         vec![
             Constraint::Length(3),
             Constraint::Min(0),
@@ -33,7 +34,9 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .split(f.area());
 
-    let header_block = Block::default().borders(Borders::ALL).title(app.title);
+    let header_block = Block::default()
+        .borders(Borders::ALL)
+        .title(app.title.as_str());
 
     f.render_widget(header_block, chunks[0]);
 
@@ -106,7 +109,8 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     f.render_widget(w, title_chunks[1]);
 
     // Connection status
-    let conn_status_span: Span = if app.data.errored() {
+    let errored = app.data.read().unwrap().errored();
+    let conn_status_span: Span = if errored {
         Span::styled("Disconnected", Style::default().fg(Color::Red))
     } else {
         Span::styled("Connected", Style::default().fg(Color::Green))
@@ -115,7 +119,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     let mut status_text_spans = vec![
         conn_status_span,
         Span::styled(" @ ", Style::default().fg(Color::Gray)),
-        Span::from(app.host),
+        Span::from(app.host.as_str()),
     ];
 
     if let Some(interval) = app.sampling_interval {
@@ -129,7 +133,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
 
     f.render_widget(w, title_chunks[2]);
 
-    if !app.data.errored() {
+    if !errored {
         match app.tabs.index {
             App::TAB_PIPELINES => draw_pipelines_tab(f, app, chunks[1]),
             App::TAB_NODE => draw_node_tab(f, app, chunks[1]),
@@ -139,7 +143,7 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
         };
     }
 
-    if app.data.last_error_message().is_some() {
+    if last_error_message.is_some() {
         draw_error_panel(f, app, chunks[2]);
     } else if app.show_help {
         let (defaults, shortcuts) = match app.tabs.index {
@@ -153,8 +157,9 @@ pub(crate) fn draw(f: &mut Frame, app: &mut App) {
     }
 }
 
-fn draw_error_panel(f: &mut Frame, app: &mut App, area: Rect) {
-    if let Some(error) = &app.data.last_error_message() {
+fn draw_error_panel(f: &mut Frame, app: &App, area: Rect) {
+    let last_error_message = app.data.read().unwrap().last_error_message().clone();
+    if let Some(error) = &last_error_message {
         f.render_widget(Block::default().borders(Borders::ALL), area);
 
         let footer_chunks = Layout::default()

@@ -1,50 +1,123 @@
-use std::fs;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
-use std::path::Path;
-
-use regex::{Captures, Regex, RegexBuilder};
-
 use crate::api::hot_threads::{HotThreads, NodeHotThreads, Thread};
 use crate::api::node::{NodeInfo, NodeInfoType};
 use crate::api::stats::NodeStats;
 use crate::api::Client;
 use crate::errors::{AnyError, TuiError};
+use regex::{Captures, Regex, RegexBuilder};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Read};
+use std::path::Path;
+use std::sync::mpsc::TrySendError;
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use std::{fs, thread};
 
-pub(crate) trait DataFetcher<'a> {
-    fn fetch_info(&self) -> Result<NodeInfo, AnyError>;
-    fn fetch_stats(&self) -> Result<NodeStats, AnyError>;
-    fn fetch_hot_threads(&self) -> Result<NodeHotThreads, AnyError>;
+pub(crate) struct NodeData {
+    pub info: NodeInfo,
+    pub stats: NodeStats,
 }
 
-pub(crate) struct ApiDataFetcher<'a> {
-    api: &'a Client<'a>,
+pub(crate) trait DataFetcher: Sync + Send {
+    fn fetch_node_data(&self, timeout: Option<Duration>) -> Result<NodeData, AnyError>;
+    fn fetch_hot_threads(&self, timeout: Option<Duration>) -> Result<NodeHotThreads, AnyError>;
 }
 
-impl<'a> ApiDataFetcher<'a> {
-    pub fn new(api: &'a Client) -> ApiDataFetcher<'a> {
-        ApiDataFetcher { api }
+pub struct ApiDataFetcher {
+    client: Arc<Client>,
+    node_data_tx: SyncSender<Result<NodeData, AnyError>>,
+    node_data_rx: Arc<Mutex<Receiver<Result<NodeData, AnyError>>>>,
+    hot_threads_tx: SyncSender<Result<NodeHotThreads, AnyError>>,
+    hot_threads_rx: Arc<Mutex<Receiver<Result<NodeHotThreads, AnyError>>>>,
+}
+
+impl ApiDataFetcher {
+    pub fn new(client: Client) -> ApiDataFetcher {
+        let (node_data_tx, node_data_rx) = sync_channel::<Result<NodeData, AnyError>>(10);
+        let (hot_threads_tx, hot_threads_rx) = sync_channel::<Result<NodeHotThreads, AnyError>>(10);
+
+        ApiDataFetcher {
+            client: Arc::new(client),
+            node_data_tx,
+            node_data_rx: Arc::new(Mutex::new(node_data_rx)),
+            hot_threads_tx,
+            hot_threads_rx: Arc::new(Mutex::new(hot_threads_rx)),
+        }
+    }
+
+    pub fn start_polling(&self, interval: Duration) {
+        let node_data_tx = self.node_data_tx.clone();
+        let client = Arc::clone(&self.client);
+        thread::Builder::new()
+            .name("api-data-fetcher-node-data".to_string())
+            .spawn(move || loop {
+                let node_info = match client.get_node_info(
+                    &[NodeInfoType::Pipelines],
+                    Some(Client::QUERY_NODE_INFO_GRAPH),
+                ) {
+                    Ok(value) => value,
+                    Err(e) => {
+                        _ = node_data_tx.send(Err(e));
+                        continue;
+                    }
+                };
+
+                let node_stats =
+                    match client.get_node_stats(Some(Client::QUERY_NODE_STATS_VERTICES)) {
+                        Ok(value) => value,
+                        Err(e) => {
+                            _ = node_data_tx.send(Err(e));
+                            continue;
+                        }
+                    };
+
+                let data = NodeData {
+                    info: node_info,
+                    stats: node_stats,
+                };
+
+                if let Err(TrySendError::Disconnected(_)) = node_data_tx.try_send(Ok(data)) {
+                    break;
+                }
+
+                thread::sleep(interval);
+            })
+            .unwrap();
+
+        let hot_threads_tx = self.hot_threads_tx.clone();
+        let client = Arc::clone(&self.client);
+        thread::Builder::new()
+            .name("api-data-fetcher-hot-threads".to_string())
+            .spawn(move || loop {
+                let res = client.get_hot_threads(Some(&[
+                    ("threads", "500"),
+                    ("ignore_idle_threads", "false"),
+                ]));
+                if hot_threads_tx.send(res).is_err() {
+                    break;
+                }
+                thread::sleep(interval);
+            })
+            .unwrap();
     }
 }
 
-impl<'a> DataFetcher<'a> for ApiDataFetcher<'a> {
-    fn fetch_info(&self) -> Result<NodeInfo, AnyError> {
-        self.api.get_node_info(
-            &[NodeInfoType::Pipelines],
-            Some(Client::QUERY_NODE_INFO_GRAPH),
-        )
+impl DataFetcher for ApiDataFetcher {
+    fn fetch_node_data(&self, timeout: Option<Duration>) -> Result<NodeData, AnyError> {
+        self.node_data_rx
+            .lock()
+            .unwrap()
+            .recv_timeout(timeout.unwrap_or(Duration::MAX))?
     }
 
-    fn fetch_stats(&self) -> Result<NodeStats, AnyError> {
-        self.api
-            .get_node_stats(Some(Client::QUERY_NODE_STATS_VERTICES))
-    }
+    fn fetch_hot_threads(&self, timeout: Option<Duration>) -> Result<NodeHotThreads, AnyError> {
+        let res = self
+            .hot_threads_rx
+            .lock()
+            .unwrap()
+            .recv_timeout(timeout.unwrap_or(Duration::MAX));
 
-    fn fetch_hot_threads(&self) -> Result<NodeHotThreads, AnyError> {
-        self.api.get_hot_threads(Some(&[
-            ("threads", "500"),
-            ("ignore_idle_threads", "false"),
-        ]))
+        res?
     }
 }
 
@@ -69,6 +142,40 @@ impl PathDataFetcher {
             Err(From::from(err))
         } else {
             Ok(PathDataFetcher { path })
+        }
+    }
+
+    fn fetch_info(path: &str, _timeout: Option<Duration>) -> Result<NodeInfo, AnyError> {
+        let node_with_graphs = Path::new(path).join(LOGSTASH_NODE_GRAPH_FILE);
+        let path = if node_with_graphs.exists() {
+            node_with_graphs
+        } else {
+            Path::new(path).join(LOGSTASH_NODE_FILE)
+        };
+
+        match fs::read_to_string(path) {
+            Ok(data) => {
+                let node_info: NodeInfo = serde_json::from_str(data.as_str())?;
+                Ok(node_info)
+            }
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    fn fetch_stats(path: &str, _timeout: Option<Duration>) -> Result<NodeStats, AnyError> {
+        let stats_with_vertices = Path::new(path).join(LOGSTASH_NODE_STATS_VERTICES_FILE);
+        let path = if stats_with_vertices.exists() {
+            stats_with_vertices
+        } else {
+            Path::new(path).join(LOGSTASH_NODE_STATS_FILE)
+        };
+
+        match fs::read_to_string(path) {
+            Ok(data) => {
+                let node_stats: NodeStats = serde_json::from_str(data.as_str())?;
+                Ok(node_stats)
+            }
+            Err(err) => Err(err.into()),
         }
     }
 
@@ -180,43 +287,17 @@ impl PathDataFetcher {
     }
 }
 
-impl DataFetcher<'_> for PathDataFetcher {
-    fn fetch_info(&self) -> Result<NodeInfo, AnyError> {
-        let node_with_graphs = Path::new(self.path.as_str()).join(LOGSTASH_NODE_GRAPH_FILE);
-        let path = if node_with_graphs.exists() {
-            node_with_graphs
-        } else {
-            Path::new(self.path.as_str()).join(LOGSTASH_NODE_FILE)
-        };
-
-        match fs::read_to_string(path) {
-            Ok(data) => {
-                let node_info: NodeInfo = serde_json::from_str(data.as_str())?;
-                Ok(node_info)
-            }
-            Err(err) => Err(err.into()),
-        }
+impl DataFetcher for PathDataFetcher {
+    fn fetch_node_data(&self, timeout: Option<Duration>) -> Result<NodeData, AnyError> {
+        let node_info = PathDataFetcher::fetch_info(self.path.as_str(), timeout)?;
+        let node_stats = PathDataFetcher::fetch_stats(self.path.as_str(), timeout)?;
+        Ok(NodeData {
+            info: node_info,
+            stats: node_stats,
+        })
     }
 
-    fn fetch_stats(&self) -> Result<NodeStats, AnyError> {
-        let stats_with_vertices =
-            Path::new(self.path.as_str()).join(LOGSTASH_NODE_STATS_VERTICES_FILE);
-        let path = if stats_with_vertices.exists() {
-            stats_with_vertices
-        } else {
-            Path::new(self.path.as_str()).join(LOGSTASH_NODE_STATS_FILE)
-        };
-
-        match fs::read_to_string(path) {
-            Ok(data) => {
-                let node_stats: NodeStats = serde_json::from_str(data.as_str())?;
-                Ok(node_stats)
-            }
-            Err(err) => Err(err.into()),
-        }
-    }
-
-    fn fetch_hot_threads(&self) -> Result<NodeHotThreads, AnyError> {
+    fn fetch_hot_threads(&self, _timeout: Option<Duration>) -> Result<NodeHotThreads, AnyError> {
         let json_file_path = Path::new(self.path.as_str()).join(LOGSTASH_NODE_HOT_THREADS_FILE);
 
         // Old versions of the Logstash diagnostic tool was generating the hot-threads file

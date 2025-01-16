@@ -302,7 +302,7 @@ fn draw_pipelines_table(f: &mut Frame, app: &mut App, area: Rect) {
     );
 }
 
-fn create_plugin_name_cell<'a>(id: &String, vertex: Option<&&Vertex>) -> Cell<'a> {
+fn create_plugin_name_cell<'a>(id: &String, vertex: Option<&Vertex>) -> Cell<'a> {
     if let Some(vertex) = vertex {
         return if vertex.explicit_id {
             Cell::from(Line::from(vec![
@@ -334,7 +334,14 @@ fn draw_selected_pipeline_widgets(f: &mut Frame, app: &mut App, area: Rect) {
 fn draw_selected_pipeline_input_plugins(f: &mut Frame, app: &mut App, area: Rect) {
     let show_as_percentage = app.flows_state.show_as_percentage;
     let show_lifetimes = app.flows_state.show_lifetime_values;
-    let pipeline_vertices = &app.flows_state.selected_pipeline_vertices(&app.data);
+
+    let empty = &HashMap::new();
+    let pipeline_vertices = &app
+        .flows_state
+        .pipelines_flow_table
+        .selected_item()
+        .map(|i| &i.vertices)
+        .unwrap_or(empty);
 
     let rows: Vec<Row> = app
         .flows_state
@@ -388,7 +395,14 @@ fn draw_selected_pipeline_input_plugins(f: &mut Frame, app: &mut App, area: Rect
 fn draw_selected_pipeline_other_plugins(f: &mut Frame, app: &mut App, area: Rect) {
     let show_as_percentage = app.flows_state.show_as_percentage;
     let show_lifetimes = app.flows_state.show_lifetime_values;
-    let pipeline_vertices = &app.flows_state.selected_pipeline_vertices(&app.data);
+
+    let empty = &HashMap::new();
+    let pipeline_vertices = &app
+        .flows_state
+        .pipelines_flow_table
+        .selected_item()
+        .map(|i| &i.vertices)
+        .unwrap_or(empty);
 
     let rows: Vec<Row> = app
         .flows_state
