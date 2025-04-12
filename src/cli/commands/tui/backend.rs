@@ -96,10 +96,11 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 
         if app.sampling_interval.is_some() && last_tick.elapsed() >= tick_interval {
             app.on_tick();
-            last_tick = Instant::now();
         }
         if app.should_quit {
             return Ok(());
         }
+
+        last_tick = Instant::now();
     }
 }

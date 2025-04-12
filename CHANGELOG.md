@@ -1,3 +1,6 @@
+## 0.7.1
+- Fixed high CPU usage when polling data from a Logstash diagnostic path (`--diagnostic-path`).
+
 ## 0.7.0
 - Logstash APIs are now fetched concurrently, improving the overall performance, and reducing UI lags when pipelines are too complex or contains several components. [#12](https://github.com/edmocosta/tuistash/pull/12)
 
