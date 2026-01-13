@@ -67,6 +67,11 @@ fn decorate_node_stats(node_stats: &mut NodeStats) {
 }
 
 fn decorate_node_info(node_info: &mut NodeInfo, node_stats: &NodeStats) {
+    if node_stats.pipelines.is_empty() {
+        node_info.pipelines = Some(HashMap::new());
+        return;
+    }
+
     if let Some(pipelines) = &mut node_info.pipelines {
         for (pipeline, info) in pipelines {
             if info.graph.graph.vertices.is_empty() {

@@ -91,7 +91,7 @@ impl StatefulTable<ThreadTableItem> {
     }
 }
 
-pub(crate) const MAX_THREAD_STATES: usize = 500;
+pub(crate) const MAX_THREAD_STATES: usize = 300;
 
 impl EventsListener for ThreadsState {
     fn update(&mut self, app_data: &AppData) {

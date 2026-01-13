@@ -12,6 +12,7 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     Terminal,
 };
+use std::io::Stdout;
 use std::ops::Add;
 use std::{
     io,
@@ -24,51 +25,65 @@ pub fn run(interval: Duration, config: &Config) -> Result<(), AnyError> {
     enable_raw_mode()?;
 
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    if let Err(err) = execute!(stdout, EnterAlternateScreen, EnableMouseCapture) {
+        let _ = disable_raw_mode();
+        return Err(AnyError::from(err));
+    }
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    if let Some(path) = &config.diagnostic_path {
-        let path = path.to_string();
-        match PathDataFetcher::new(path.to_string()) {
-            Ok(file_data_fetcher) => {
-                let mut app = App::new(APP_TITLE.to_string(), path, None);
-                app.set_data(&file_data_fetcher);
-                run_app(&mut terminal, app)?;
-            }
-            Err(err) => {
-                return Err(err);
-            }
-        };
-    } else {
-        let app = App::new(
-            APP_TITLE.to_string(),
-            config.api.base_url().to_string(),
-            Some(interval),
-        );
-
-        let fetcher = ApiDataFetcher::new(config.api.clone());
-        fetcher.start_polling(interval);
-
-        app.start_reading_data(Box::new(fetcher), interval);
-        run_app(&mut terminal, app)?;
+    let result = match config.diagnostic_path.as_deref() {
+        Some(path) => run_with_path(&mut terminal, path),
+        None => run_with_api(&mut terminal, interval, config),
     };
 
-    disable_raw_mode()?;
-
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-
-    terminal.show_cursor()?;
-    Ok(())
+    disable_terminal(terminal.backend_mut());
+    result
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+fn run_with_path(
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    path: &str,
+) -> Result<(), AnyError> {
+    let path = path.to_string();
+    let file_data_fetcher = PathDataFetcher::new(path.clone())?;
+
+    let mut app = App::new(APP_TITLE.to_string(), path, None);
+    app.set_data(&file_data_fetcher);
+
+    run_app(terminal, app).map_err(AnyError::from)
+}
+
+fn run_with_api(
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    interval: Duration,
+    config: &Config,
+) -> Result<(), AnyError> {
+    let app = App::new(
+        APP_TITLE.to_string(),
+        config.api.base_url().to_string(),
+        Some(interval),
+    );
+
+    let fetcher = ApiDataFetcher::new(config.api.clone());
+    fetcher.start_polling(interval);
+
+    app.start_reading_data(Box::new(fetcher), interval);
+    run_app(terminal, app).map_err(AnyError::from)
+}
+
+fn disable_terminal(terminal: &mut CrosstermBackend<Stdout>) {
+    let _ = disable_raw_mode();
+    let _ = execute!(terminal, LeaveAlternateScreen, DisableMouseCapture);
+    let _ = terminal.show_cursor();
+}
+
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()>
+where
+    io::Error: From<<B as Backend>::Error>,
+{
     app.wait_node_data();
     app.on_tick();
 
