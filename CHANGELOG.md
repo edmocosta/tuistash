@@ -1,3 +1,8 @@
+## 0.7.2
+- Reduced the maximum number of Logstash threads states in memory from 500 to 300 to avoid high memory usage when running for long periods.
+- Improved TUI backend error handling.
+- Bumped dependencies versions.
+
 ## 0.7.1
 - Fixed high CPU usage when polling data from a Logstash diagnostic path (`--diagnostic-path`).
 

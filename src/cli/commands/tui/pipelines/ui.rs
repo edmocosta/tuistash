@@ -387,7 +387,7 @@ fn get_pipeline_workers(app: &App, pipeline_name: &str) -> Option<i64> {
     None
 }
 
-fn create_pipeline_vertex_if_row(vertex: &Vertex, ident_spaces: String) -> Row {
+fn create_pipeline_vertex_if_row(vertex: &Vertex, ident_spaces: String) -> Row<'_> {
     let if_text = Line::from(vec![
         Span::raw(ident_spaces),
         Span::styled("if ", Style::default().fg(Color::Red)),
@@ -400,7 +400,7 @@ fn create_pipeline_vertex_if_row(vertex: &Vertex, ident_spaces: String) -> Row {
 fn create_pipeline_vertex_queue_row(
     ident_spaces: String,
     pipeline_stats: Option<&PipelineStats>,
-) -> Row {
+) -> Row<'_> {
     let (queue_type, events_in, events_out, queue_push_duration, backpressure) =
         match pipeline_stats {
             None => ("-", 0, 0, 0, None),
