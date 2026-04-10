@@ -1,3 +1,6 @@
+## 0.7.3
+- Improved table row selection contrast on dark terminal backgrounds by using a lighter selected-row highlight.
+
 ## 0.7.2
 - Reduced the maximum number of Logstash threads states in memory from 500 to 300 to avoid high memory usage when running for long periods.
 - Improved TUI backend error handling.
