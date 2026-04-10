@@ -4,7 +4,7 @@ use ratatui::widgets::TableState;
 pub(crate) const TABLE_HEADER_CELL_STYLE: Style =
     Style::new().fg(Color::Gray).add_modifier(Modifier::BOLD);
 pub(crate) const TABLE_HEADER_ROW_STYLE: Style = Style::new().bg(Color::DarkGray);
-pub(crate) const TABLE_SELECTED_ROW_STYLE: Style = Style::new().bg(Color::Gray);
+pub(crate) const TABLE_SELECTED_ROW_STYLE: Style = Style::new().bg(Color::Indexed(246));
 pub(crate) const TABLE_SELECTED_ROW_SYMBOL: &str = "▍";
 
 // Tabs
