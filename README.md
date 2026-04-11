@@ -22,6 +22,12 @@ brew tap edmocosta/homebrew-tap
 brew install tuistash
 ```
 
+### X-CMD
+If you are a user of [x-cmd](https://x-cmd.com/install/tuistash), you can run:
+```shell
+x install tuistash
+```
+
 ### Manual
 The compiled versions can be downloaded from the [GitHub releases page](https://github.com/edmocosta/tuistash/releases).
 If a version for your operating system isn't available, you can build it from the source by following these steps:
